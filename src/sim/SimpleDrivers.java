@@ -172,7 +172,6 @@ public class SimpleDrivers extends SimState {
 			///////////// READING IN DATA ////////////////
 			//////////////////////////////////////////////
 		
-//			InputCleaning.readInVectorLayer(baseLayer, dirName + "water.shp", "water", new Bag());
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "buildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsMajor.shp", "road network", new Bag());
 			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parking.shp", "road network", new Bag());
@@ -189,8 +188,6 @@ public class SimpleDrivers extends SimState {
 			this.grid_width = buildingLayer.fieldWidth / 3;
 			this.grid_height = buildingLayer.fieldHeight / 3;
 
-			//evacuationAreas.setMBR(MBR);
-			
 			heatmap = new GeomGridField();
 			heatmap.setMBR(MBR);
 			heatmap.setGrid(new IntGrid2D((int)(MBR.getWidth() / 100), (int)(MBR.getHeight() / 100), 0));
@@ -234,15 +231,8 @@ public class SimpleDrivers extends SimState {
 
 			}
 
-			// add shelter entrance info
-/*			
-			for(Object o: shelterRaw.getGeometries()){
-				MasonGeometry shelter = (MasonGeometry)o;
-				Shelter myShelter = new Shelter(shelter, (int) shelter.getIntegerAttribute("parkingNum"));
-				parkingLayer.addGeometry(myShelter);
-			}
-			
-	*/		/////////////////////
+
+			/////////////////////
 			///////// Clean up roads for Persons to use ///////////
 			/////////////////////
 						
@@ -279,7 +269,7 @@ public class SimpleDrivers extends SimState {
 
 
 			// reset MBRS in case it got messed up during all the manipulation
-			baseLayer.setMBR(MBR);
+		
 */			buildingLayer.setMBR(MBR);
 			roadLayer.setMBR(MBR);			
 			networkLayer.setMBR(MBR);
