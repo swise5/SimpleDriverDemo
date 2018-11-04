@@ -1,22 +1,29 @@
-package sim;
+package objects;
 
 import java.util.ArrayList;
 
+import sim.SimpleDrivers;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
+import sim.util.geo.MasonGeometry;
+import swise.agents.TrafficAgent;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
 
-public class Driver implements Steppable {
+public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	Coordinate location = null;
 	ArrayList <Coordinate> deliveries = new ArrayList <Coordinate> ();
+	ArrayList <Parcel> parcels;
 	public Stoppable stopper = null;
 	double speed = 3.;
 	
 	public Driver(Coordinate c){
+		super(c);
 		this.location = (Coordinate) c.clone();
+		parcels = new ArrayList <Parcel> ();
 	}
 	
 	public void addDelivery(Coordinate c){
@@ -66,5 +73,21 @@ public class Driver implements Steppable {
 		//System.out.println(">>>> now I am at " + location.toString() + " and I am going to " + deliveries.get(0).toString());
 		world.schedule.scheduleOnce(this);
 		*/
+	}
+
+	@Override
+	public void addParcel(Parcel p) {
+		parcels.add(p);
+		
+	}
+
+	@Override
+	public boolean removeParcel(Parcel p) {
+		return parcels.remove(p);
+	}
+
+	@Override
+	public Coordinate getLocation() {
+		return geometry.getCoordinate();
 	}
 }

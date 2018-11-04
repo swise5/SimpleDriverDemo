@@ -37,6 +37,8 @@ import swise.objects.NetworkUtilities;
 import swise.objects.PopSynth;
 import swise.objects.network.GeoNode;
 import swise.objects.network.ListEdge;
+import utilities.DepotUtilities;
+import utilities.DriverUtilities;
 import swise.objects.InputCleaning;
 import swise.objects.RoadNetworkUtilities;
 
@@ -50,6 +52,8 @@ import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
 import ec.util.MersenneTwisterFast;
+import objects.Driver;
+import objects.Parcel;
 
 /**
  * TakamatsuSim is the core of a simulation which projects the behavior of agents in the aftermath
@@ -68,24 +72,17 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 2;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
-/*	double communication_success_prob = -1;
-	double contact_success_prob = -1;
-	double tweet_prob = -1;
-	double retweet_prob = -1;
-	double comfortDistance = -1;
-	double observationDistance = -1;
-	double decayParam = -1;
-*/	public static double speed_pedestrian = 7;
+	public static double speed_pedestrian = 7;
 	public static double speed_vehicle = 40;
 
+	public static int loadingTime = 20;
+
+	public static int numParcels = 1000;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
 	
-//	public static String communicatorFilename = "communicatorEvents.txt";
-//	public static String agentFilename = "synthPopulationHOUSEHOLD.txt";
-
 /*	String record_speeds_filename = "speeds/speeds", 
 			record_sentiment_filename = "sentiments/sentiment",
 			record_heatmap_filename = "heatmaps/heatmap",
@@ -107,10 +104,6 @@ public class SimpleDrivers extends SimState {
 	public GeomVectorField networkLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField networkEdgeLayer = new GeomVectorField(grid_width, grid_height);	
 	public GeomVectorField majorRoadNodesLayer = new GeomVectorField(grid_width, grid_height);
-/*	public GeomVectorField evacuationAreas = new GeomVectorField(grid_width, grid_height);
-	public GeomVectorField fireLayer = new GeomVectorField(grid_width, grid_height);
-	public ArrayList <GeomVectorField> firePoints = new ArrayList <GeomVectorField>();
-	*/
 
 	ArrayList <ListEdge> badRoads = null;
 	
@@ -132,6 +125,8 @@ public class SimpleDrivers extends SimState {
 	MediaInstance media = new MediaInstance();
 	public ArrayList <Driver> agents = new ArrayList <Driver> (10);
 	public Network agentSocialNetwork = new Network();
+
+	ArrayList <ArrayList <Parcel>> rounds;
 	
 	public GeometryFactory fa = new GeometryFactory();
 	
@@ -262,21 +257,25 @@ public class SimpleDrivers extends SimState {
 
 			System.gc();
 			
-	/*		agents.addAll(PersonUtilities.setupPersonsAtRandom(networkLayer, schedule, this, fa));
-			for(Person p: agents){
+	/*		agents.addAll(DriverUtilities.setupDriversAtRandom(networkLayer, schedule, this, fa, 10));
+			for(Driver p: agents){
 				agentsLayer.addGeometry(p);
 			}
+*/
 
-
+			
 			// reset MBRS in case it got messed up during all the manipulation
 		
-*/			buildingLayer.setMBR(MBR);
+			buildingLayer.setMBR(MBR);
 			roadLayer.setMBR(MBR);			
 			networkLayer.setMBR(MBR);
 			networkEdgeLayer.setMBR(MBR);
 			majorRoadNodesLayer.setMBR(MBR);
 			agentsLayer.setMBR(MBR);
 			parkingLayer.setMBR(MBR);
+
+			generateRandomParcels();
+
 			
 			System.out.println("done");
 
@@ -289,7 +288,7 @@ public class SimpleDrivers extends SimState {
 /*			setupPersonsFromFile(dirName + agentFilename);
 			agentsLayer.setMBR(MBR);
 			
-/*			// for each of the Persons, set up relevant, environment-specific information
+			// for each of the Persons, set up relevant, environment-specific information
 			int aindex = 0;
 			for(Person a: agents){
 				
@@ -325,34 +324,7 @@ public class SimpleDrivers extends SimState {
 				aindex++;
 			}
 */
-/*			
-			// schedule the road network to update as the wildfire moves
-			this.schedule.scheduleRepeating(new Steppable(){
-				private static final long serialVersionUID = 1L;
 
-				@Override
-				public void step(SimState state) {
-
-					// check to see if any roads have been overtaken by the wildfire: if so, remove them from the network
-					badRoads = new ArrayList <ListEdge> ();
-					Bag overlappers = networkEdgeLayer.getObjectsWithinDistance(wildfire.extent, resolution);
-					for(Object o: overlappers){
-						ListEdge aBadRoad = (ListEdge) ((AttributeValue) ((MasonGeometry) o).getAttribute("ListEdge")).getValue();
-						badRoads.add( aBadRoad);
-					}
-
-					// close the closed roads
-					for(ListEdge r: badRoads){
-						((MasonGeometry)r.info).addStringAttribute("open", "CLOSED");
-					}
-				}
-				
-			}, 10, 12);
-
-*/			
-			// set up the evacuation orders to be inserted into the social media environment
-//			setupCommunicators(dirName + communicatorFilename);
-		
 			// seed the simulation randomly
 			seedRandom(System.currentTimeMillis());
 
@@ -361,6 +333,27 @@ public class SimpleDrivers extends SimState {
 
 		} catch (Exception e) { e.printStackTrace();}
     }
+	
+	public void generateRandomParcels(){
+		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
+		for(int i = 0; i < numParcels; i++){				
+			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
+			Coordinate myc = gn.getGeometry().getCoordinate();
+			
+			if(!MBR.contains(myc)){
+				i--;
+				continue;
+			}
+			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
+			
+			Parcel p = new Parcel(myc);
+			p.setDeliveryLocation(myc);
+			agentsLayer.addGeometry(p);
+			myParcels.add(p);
+		}
+		
+		rounds = DepotUtilities.gridDistribution(myParcels, agentsLayer, 10);
+	}
 	
 	/**
 	 * Schedule the regular 

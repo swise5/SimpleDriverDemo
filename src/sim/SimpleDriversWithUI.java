@@ -1,6 +1,7 @@
 package sim;
 
 import java.awt.Color;
+import java.awt.Paint;
 
 import javax.swing.JFrame;
 
@@ -14,6 +15,10 @@ import sim.portrayal.geo.GeomVectorFieldPortrayal;
 import sim.portrayal.grid.ObjectGridPortrayal2D;
 import sim.portrayal.grid.SparseGridPortrayal2D;
 import sim.portrayal.simple.OvalPortrayal2D;
+import sim.util.gui.ColorMap;
+import sim.util.gui.SimpleColorMap;
+import swise.visualization.AttributePolyPortrayal;
+import swise.visualization.SegmentedColorMap;
 
 public class SimpleDriversWithUI extends GUIState {
 
@@ -56,12 +61,25 @@ public class SimpleDriversWithUI extends GUIState {
 		SimpleDrivers world = (SimpleDrivers) state;
 		
 		roads.setField(world.roadLayer);
-		roads.setPortrayalForAll(new GeomPortrayal(new Color(100,100,100, 50), 5, false));
+		roads.setPortrayalForAll(new GeomPortrayal(new Color(100,100,100, 50), 2, false));
+		roads.setImmutableField(true);
 		
 		buildings.setField(world.buildingLayer);
 		buildings.setPortrayalForAll(new GeomPortrayal(new Color(150,150,150), true));
 		buildings.setImmutableField(true);
 		
+		agents.setField(world.agentsLayer);
+		double [] levels = new double [100];
+		Color [] colors = new Color [100];
+		for(int i = 0; i < 100; i++){
+			levels[i] = i;
+			colors[i] = new Color(world.random.nextInt(255), world.random.nextInt(255), world.random.nextInt(255));
+		}
+		SegmentedColorMap scm = new SegmentedColorMap(levels, colors);
+		agents.setPortrayalForAll(new AttributePolyPortrayal(
+				scm,//new SimpleColorMap(0,100, Color.red, Color.green), 
+				"round", new Color(0,0,0,0), true, 20));//new GeomPortrayal(new Color(255,150,150), 20));
+		//agents.setImmutableField(true);
 		
 		display.reset();
 		display.setBackdrop(new Color(10,10,10));
@@ -95,7 +113,7 @@ public class SimpleDriversWithUI extends GUIState {
 	}
 
 	/** Returns the name of the simulation */
-	public static String getName() { return "Steve"; }
+	public static String getName() { return "SimpleDriver"; }
 	
 	public static void main(String [] args){
 		(new SimpleDriversWithUI()).createController();
