@@ -26,8 +26,12 @@ public class DepotUtilities {
 		double roundsPerSide = Math.ceil(Math.sqrt(approxNumRounds)); // the approx area covered per round
 	
 		// set up a round for each category
-		ArrayList <ArrayList <Parcel>> rounds = new ArrayList <ArrayList<Parcel>> 
-			(Collections.nCopies((int)Math.ceil(roundsPerSide * roundsPerSide)+1, new ArrayList <Parcel> ())); // for safety??
+		ArrayList <ArrayList <Parcel>> rounds = new ArrayList <ArrayList<Parcel>> (); // for safety??
+		// Collections.nCopies((int)Math.ceil(roundsPerSide * roundsPerSide)+1, new ArrayList <Parcel> ())
+		
+		for(int i = 0; i < (int)Math.ceil(roundsPerSide * roundsPerSide)+1; i++){
+			rounds.add(new ArrayList <Parcel> ());
+		}
 		
 		// define the limits on the distances
 		
@@ -41,7 +45,12 @@ public class DepotUtilities {
 			p.addIntegerAttribute("round", myX + myY * xperRow);
 		}
 		
-		return rounds;
+		Collections.sort(rounds, (o1, o2) ->  ((Integer)o1.size()).compareTo(o2.size()));
+		for(int i = 0; i < rounds.size(); i++){
+			if(rounds.get(i).size() > 0)
+				return new ArrayList <ArrayList<Parcel>> (rounds.subList(i, rounds.size()));
+		}
+		return new ArrayList <ArrayList<Parcel>> ();
 	}
 	
 }

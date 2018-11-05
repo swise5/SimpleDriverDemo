@@ -24,6 +24,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	SimpleDrivers world;
 	Coordinate homeBase = null;
 	Coordinate targetDestination = null;
+	double roundStartTime = -1;
 
 	ArrayList <Parcel> parcels;
 	public Stoppable stopper = null;
@@ -64,6 +65,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		this.isMovable = true;
 	}
 	
+	public void startRoundClock(){
+		roundStartTime = world.schedule.getTime();
+	}
+	
 	@Override
 	public void step(SimState arg0) {
 		
@@ -96,7 +101,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		//  otherwise, you're at the Depot - enter it
 		else {
-			System.out.println(this.toString() + " is done with the round! It took " + world.schedule.getTime());
+			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
 			Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
 			if(b.size() > 0){
 				Depot d = (Depot) b.get(0);

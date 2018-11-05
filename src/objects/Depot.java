@@ -66,7 +66,12 @@ public class Depot extends SpatialAgent implements Burdenable {
 	 * activate the Driver when ready. 
 	 */
 	public int enterDepot(Driver d){
-		if(inBays.size() >= numBays){
+		
+		System.out.println(d.toString() + " has entered the depot!");
+		
+		if(rounds.size() == 0)
+			return -1; // finished with everything
+		else if(inBays.size() >= numBays){
 			waiting.add(d);
 			world.schedule.scheduleOnce(new Steppable(){
 
@@ -90,17 +95,23 @@ public class Depot extends SpatialAgent implements Burdenable {
 		return SimpleDrivers.loadingTime;
 	}
 	
+	ArrayList <Parcel> getNextRound(){
+		return rounds.remove(0);
+	}
+	
 	void enterBay(Driver d){
 		inBays.add(d);
 		if(rounds.size() <= 0)
-			leaveDepot(d);
+			return;
 		
 		else
 			world.schedule.scheduleOnce(world.schedule.getTime() + world.loadingTime, new Steppable(){
 
 				@Override
 				public void step(SimState state) {
-					d.addParcels(rounds.remove(0));
+					ArrayList <Parcel> newRound = getNextRound();
+					System.out.println(d.toString() + " has taken on a new load: " + newRound.toArray().toString());
+					d.addParcels(newRound);
 					leaveDepot(d);
 				}
 			
@@ -123,6 +134,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 				Driver n = waiting.remove(0);
 				inBays.add(n);
 				world.schedule.scheduleOnce(world.schedule.getTime() + SimpleDrivers.loadingTime, n);
+				n.startRoundClock();
 			}
 		}
 		else

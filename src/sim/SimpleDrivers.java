@@ -74,7 +74,7 @@ public class SimpleDrivers extends SimState {
 				// (fiddle around with this to merge nodes into one another)
 
 	public static double speed_pedestrian = 7;
-	public static double speed_vehicle = 40;
+	public static double speed_vehicle = 30;
 
 	public static int loadingTime = 20;
 
@@ -425,9 +425,6 @@ public class SimpleDrivers extends SimState {
 	
 	public void generateRandomParcels(Depot d){
 		
-		// pull out the depots in which to initialise them
-		Bag b = depotLayer.getGeometries();
-		
 		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
 		for(int i = 0; i < numParcels; i++){				
 			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
@@ -442,9 +439,7 @@ public class SimpleDrivers extends SimState {
 			Parcel p = new Parcel(d.geometry.getCoordinate());
 			p.setDeliveryLocation(myc);
 			deliveryLocationLayer.addGeometry(p);
-			myParcels.add(p);
-			
-			((Depot)d).addParcel(p);
+			myParcels.add(p);			
 		}
 		
 		d.addRounds(DepotUtilities.gridDistribution(myParcels, deliveryLocationLayer, 10));
