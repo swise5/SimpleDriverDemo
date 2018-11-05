@@ -69,16 +69,19 @@ public class SimpleDrivers extends SimState {
 	
 	private static final long serialVersionUID = 1L;
 	public static int grid_width = 800;
-	public static int grid_height = 600;
-	public static double resolution = 2;// the granularity of the simulation 
+	public static int grid_height = 500;
+	public static double resolution = 5;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
 	public static double speed_pedestrian = 7;
-	public static double speed_vehicle = 30;
+	public static double speed_vehicle = 10;
 
 	public static int loadingTime = 20;
+	public static int deliveryTime = 3;
+	public static int approxManifestSize = 20;
 
 	public static int numParcels = 1000;
+	public static double probFailedDelivery = .3;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
@@ -102,26 +105,15 @@ public class SimpleDrivers extends SimState {
 	public GeomVectorField networkEdgeLayer = new GeomVectorField(grid_width, grid_height);	
 	public GeomVectorField majorRoadNodesLayer = new GeomVectorField(grid_width, grid_height);
 
-	ArrayList <ListEdge> badRoads = null;
-	
 	public GeomGridField heatmap = new GeomGridField();
-
-	public GeomVectorField hi_roadLayer = new GeomVectorField(grid_width, grid_height);
-	public Network hiNetwork = new Network();
+	public Bag roadNodes = new Bag();
+	public Network roads = new Network(false);
 
 	/////////////// End Containers ///////////////////////////////////////
 
 	/////////////// Objects //////////////////////////////////////////////
 
-	
-	public Bag roadNodes = new Bag();
-	public Network roads = new Network(false);
-	HashMap <MasonGeometry, ArrayList <GeoNode>> localNodes;
-	public Bag terminus_points = new Bag();
-
 	public ArrayList <Driver> agents = new ArrayList <Driver> (10);
-	public Network agentSocialNetwork = new Network();
-
 	ArrayList <ArrayList <Parcel>> rounds;
 	
 	public GeometryFactory fa = new GeometryFactory();
@@ -131,9 +123,6 @@ public class SimpleDrivers extends SimState {
 	Envelope MBR = null;
 	
 	boolean verbose = false;
-	
-	public int numEvacuated = 0;
-	public int numDied = 0;
 	
 	/////////////// END Objects //////////////////////////////////////////
 
@@ -178,9 +167,6 @@ public class SimpleDrivers extends SimState {
 			MBR = buildingLayer.getMBR();
 			MBR.init(525044, 535806, 176259, 184098);
 
-		//	this.grid_width = buildingLayer.fieldWidth / 3;
-		//	this.grid_height = buildingLayer.fieldHeight / 3;
-
 			heatmap = new GeomGridField();
 			heatmap.setMBR(MBR);
 			heatmap.setGrid(new IntGrid2D((int)(MBR.getWidth() / 100), (int)(MBR.getHeight() / 100), 0));
@@ -200,8 +186,6 @@ public class SimpleDrivers extends SimState {
 				GeoNode n = (GeoNode) o;
 				networkLayer.addGeometry(n);
 				
-				boolean potential_terminus = false;
-				
 				// check all roads out of the nodes
 				for(Object ed: roads.getEdgesOut(n)){
 					
@@ -212,16 +196,7 @@ public class SimpleDrivers extends SimState {
 					roadLayer.addGeometry((MasonGeometry) edge.info);
 					((MasonGeometry)edge.info).addAttribute("ListEdge", edge);
 					
-					String type = ((MasonGeometry)edge.info).getStringAttribute("highway");
-					if(type.equals("motorway") || type.equals("primary") || type.equals("trunk"))
-						potential_terminus = true;
 				}
-				
-				// check to see if it's a terminus
-				if(potential_terminus && !MBR.contains(n.geometry.getCoordinate()) && roads.getEdges(n, null).size() == 1){
-					terminus_points.add(n);
-				}
-
 			}
 
 
@@ -259,7 +234,7 @@ public class SimpleDrivers extends SimState {
 			// set up depots
 			setupDepots(dummyDepotLayer);
 			
-			// reset MBRS in case it got messed up during all the manipulation
+			// reset MBRs in case they got messed up during all the manipulation
 		
 			buildingLayer.setMBR(MBR);
 			roadLayer.setMBR(MBR);			
@@ -281,6 +256,7 @@ public class SimpleDrivers extends SimState {
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
 				generateRandomParcels(d);
+				d.generateRounds();
 			}
 
 			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 10));
@@ -436,13 +412,10 @@ public class SimpleDrivers extends SimState {
 			}
 			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
 					
-			Parcel p = new Parcel(d.geometry.getCoordinate());
+			Parcel p = new Parcel(d);
 			p.setDeliveryLocation(myc);
-			deliveryLocationLayer.addGeometry(p);
 			myParcels.add(p);			
-		}
-		
-		d.addRounds(DepotUtilities.gridDistribution(myParcels, deliveryLocationLayer, 10));
+		}		
 	}
 
 
@@ -451,66 +424,20 @@ public class SimpleDrivers extends SimState {
 	 */
 	public void finish(){
 		super.finish();
-	/*	for(Person p: agents){
-			System.out.print(p.getEvacuatingTime() + "\t");
-		}
-/*		try{
+		try{
 			
-			// clean up and finish recording everything
+			// save the history
+			BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
 			
-			this.record_sentiment.close();
-			this.record_speeds.close();
-			
-			// create part of the title to record all the paramters used in this simulation
-			String mySettings = communication_success_prob + "_" + contact_success_prob + "_" + tweet_prob + "_" + 
-					retweet_prob + "_" + comfortDistance + "_" + observationDistance + "_" + decayParam + "_" + speed + "_";
-
-			// SAVE THE HEATMAP
-			record_heatmap = new BufferedWriter(new FileWriter(dirName + record_heatmap_filename + mySettings + mySeed + ".txt"));
-			IntGrid2D myHeatmap = ((IntGrid2D) this.heatmap.getGrid());
-
-			// write a header
-			record_heatmap.write(myHeatmap.getWidth() + "\t" + myHeatmap.getHeight() + "\t" + (int)schedule.getTime() + "\n");
-			for(int i = 0; i < myHeatmap.getWidth(); i++){
-				String output = "";
-				for(int j = 0; j < myHeatmap.getHeight(); j++){
-					output += myHeatmap.field[i][j] + "\t";
-				}
-				record_heatmap.write(output + "\n");
+			for(Driver a: agents){
+				for(String s: a.getHistory())
+				output.write(s + "\n");
 			}
-			record_heatmap.close();
-
-			// print a record out
-			System.out.println(this.mySeed + "\t" + this.numDied + "\t" + this.numEvacuated);
-			
-			// SAVE ALL AGENT INFO
-			
-			for(Person a: agents){
-				String myID = a.toString();
-				for(Object o: a.knowledge.keySet()){
-					Information i = a.knowledge.get(o);
-					Object source = i.getSource();
-					String sourceStr;
-					if(source instanceof Person)
-						sourceStr = ((Person)source).toString();
-					else if(source == null)
-						sourceStr = "null";
-					else
-						sourceStr = source.toString();
-					
-					try {
-						record_info.write(myID + "\t" + sourceStr + "\t" + i.getTime() + "\t" + o.toString() + "\n");
-					} catch (IOException e) {e.printStackTrace();}
-				}
-
-			}
-
-			this.record_info.close();
+			output.close();
 
 		} catch (IOException e){
 			e.printStackTrace();
 		}
-		*/
 	}
 	
 
@@ -531,15 +458,6 @@ public class SimpleDrivers extends SimState {
 		random = new MersenneTwisterFast(number);
 		mySeed = number;
 	}
-	
-	// reset the agent layer's MBR
-	public void resetLayers(){
-		MBR = buildingLayer.getMBR();
-		//MBR.init(501370, 521370, 4292000, 4312000);
-		this.deliveryLocationLayer.setMBR(MBR);
-		this.roadLayer.setMBR(MBR);
-	}
-
 
 	/**
 	 * To run the model without visualization

@@ -25,14 +25,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	Coordinate homeBase = null;
 	Coordinate targetDestination = null;
 	double roundStartTime = -1;
+	double roundDistance = 0;
 
 	ArrayList <Parcel> parcels;
+	ArrayList <String> history = new ArrayList <String> ();
+
+	int index = 0;
 	public Stoppable stopper = null;
 	double speed = 3.;
 	
 	double enteredRoadSegment = -1;
 
-	boolean delivering = false;
+	Parcel currentDelivery = null;
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -67,6 +71,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	
 	public void startRoundClock(){
 		roundStartTime = world.schedule.getTime();
+		roundDistance = 0;
 	}
 	
 	@Override
@@ -75,18 +80,41 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		double time = world.schedule.getTime(); // find the current time
 
+		// if you've arrived at the delivery point, deliver the parcel!
+		if(currentDelivery != null && geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution){
+			
+			//attempt delivery
+			if(world.random.nextDouble() < world.probFailedDelivery){
+				index++;
+				System.out.println(this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
+			}
+			else {
+				this.removeParcel(currentDelivery);
+				System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
+				currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
+				world.deliveryLocationLayer.addGeometry(currentDelivery);
+			}
+
+			world.schedule.scheduleOnce(time + world.deliveryTime, this);
+			currentDelivery = null;
+
+			return;
+		}
+		
 		// if you're still moving, keep moving
-		if(path != null){
+		else if(path != null){
 			navigate(world.resolution);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
 		
 		// otherwise, if you've still got parcels to deliver, deliver that parcel! 
-		else if(parcels.size() > 0){
+		else if(parcels.size() > index){
 
-			Parcel nextParcel = parcels.remove(0);
+			Parcel nextParcel = parcels.get(index);
+			currentDelivery = nextParcel;
 			headFor(nextParcel.deliveryLocation);
+			roundDistance = calculateDistance(path);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
@@ -101,11 +129,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		//  otherwise, you're at the Depot - enter it
 		else {
+			
+			double roundTime = world.schedule.getTime() - roundStartTime;
+			history.add(this.toString() + "\t" + roundTime + "\t" + roundDistance);
 			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
 			Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
 			if(b.size() > 0){
 				Depot d = (Depot) b.get(0);
 				d.enterDepot(this);
+				if(parcels.size() > 0){
+					System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
+					transferTo(parcels, d);
+				}
 			}
 		}		
 	}
@@ -113,11 +148,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	@Override
 	public void addParcel(Parcel p) {
 		parcels.add(p);
-		
-	}
-	
-	public void addParcels(ArrayList <Parcel> ps){
-		parcels.addAll(ps);
+		updateRound();
 	}
 
 	@Override
@@ -125,6 +156,56 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		return parcels.remove(p);
 	}
 
+	public boolean removeParcels(ArrayList <Parcel> ps){
+		return parcels.removeAll(ps);
+	}
+	
+
+	@Override
+	public void addParcels(ArrayList<Parcel> ps) {
+		parcels.addAll(ps);
+		updateRound();
+	}
+
+	// really basic right now: start with the first one and greedily pick the next closest, until you have them all
+	void updateRound(){
+		if(parcels.size() <= 1) return;
+		
+		for(int i = 1; i < parcels.size(); i++){
+			Parcel p = parcels.get(i - 1);
+			double dist = Double.MAX_VALUE;
+			int best = -1;
+			
+			for(int j = i; j < parcels.size(); j++){
+				Parcel pj = parcels.get(j);
+				double pjdist = pj.deliveryLocation.distance(p.deliveryLocation);
+				if(pjdist < dist){
+					dist = pjdist;
+					best = j;
+				}
+			}
+			Parcel closestParcel = parcels.remove(best);
+			parcels.add(i, closestParcel);
+		}
+	}
+	
+	@Override
+	public boolean transferTo(Object o, Burdenable b) {
+		try{
+			if(o instanceof ArrayList){
+				parcels.removeAll((ArrayList <Parcel>) o);
+				b.addParcels((ArrayList <Parcel>) o);
+			}
+			else {
+				parcels.remove((Parcel) o);
+				b.addParcel((Parcel) o);
+			}
+			return true;
+		} catch (Exception e){
+			return false;
+		}
+	}
+	
 	@Override
 	public Coordinate getLocation() {
 		return geometry.getCoordinate();
@@ -434,4 +515,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		return 1;
 	}
 
+	
+	public double calculateDistance(ArrayList <Edge> edges){
+		double result = 0;
+		for(Edge e: edges){
+			result += ((MasonGeometry)e.info).geometry.getLength();
+		}
+		return result;
+	}
+	
+	public ArrayList <String> getHistory() {return history; }
 }

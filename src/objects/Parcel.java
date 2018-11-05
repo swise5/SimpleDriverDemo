@@ -15,9 +15,12 @@ public class Parcel extends MobileAgent {
 	ArrayList <String> history;
 	int status; // 0 = undelivered, 1 = failed delivery attempt, 2 = out for delivery, 3 = delivered
 	
-	public Parcel(Coordinate c){
-		super((Coordinate) c.clone());
+	public Parcel(Burdenable carrier){
+		super((Coordinate) carrier.getLocation());
+		carryingUnit = carrier;
 		history = new ArrayList <String> ();
+		carrier.addParcel(this);
+		isMovable = true;
 	}
 	
 	public void setDeliveryLocation(Coordinate c){

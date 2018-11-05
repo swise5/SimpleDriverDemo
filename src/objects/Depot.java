@@ -9,6 +9,7 @@ import sim.engine.SimState;
 import sim.engine.Steppable;
 import swise.agents.SpatialAgent;
 import swise.objects.network.GeoNode;
+import utilities.DepotUtilities;
 
 public class Depot extends SpatialAgent implements Burdenable {
 
@@ -49,6 +50,34 @@ public class Depot extends SpatialAgent implements Burdenable {
 		return parcels.remove(p);
 	}
 
+	public boolean removeParcels(ArrayList <Parcel> ps){
+		return parcels.removeAll(ps);
+	}
+	
+
+	@Override
+	public void addParcels(ArrayList<Parcel> ps) {
+		parcels.addAll(ps);
+	}
+
+	@Override
+	public boolean transferTo(Object o, Burdenable b) {
+		try{
+			if(o instanceof ArrayList){
+				parcels.removeAll((ArrayList <Parcel>) o);
+				b.addParcels((ArrayList <Parcel>) o);
+			}
+			else {
+				parcels.remove((Parcel) o);
+				b.addParcel((Parcel) o);
+			}
+			return true;
+		} catch (Exception e){
+			return false;
+		}
+	}
+
+	
 	@Override
 	public Coordinate getLocation() {
 		return geometry.getCoordinate();
@@ -110,6 +139,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 				@Override
 				public void step(SimState state) {
 					ArrayList <Parcel> newRound = getNextRound();
+					transferTo(newRound, d);
 					System.out.println(d.toString() + " has taken on a new load: " + newRound.toArray().toString());
 					d.addParcels(newRound);
 					leaveDepot(d);
@@ -143,5 +173,9 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	public void addRounds(ArrayList <ArrayList <Parcel>> rounds){
 		this.rounds = rounds;
+	}
+	
+	public void generateRounds(){
+		rounds.addAll(DepotUtilities.gridDistribution(parcels, world.deliveryLocationLayer, world.approxManifestSize));
 	}
 }
