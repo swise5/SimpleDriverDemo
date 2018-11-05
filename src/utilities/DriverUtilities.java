@@ -9,6 +9,7 @@ import java.util.Map.Entry;
 
 import com.vividsolutions.jts.geom.Point;
 
+import objects.Depot;
 import objects.Driver;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -26,7 +27,7 @@ import swise.objects.PopSynth;
 
 public class DriverUtilities {
 	
-	public static synchronized ArrayList<Driver> setupDriversAtRandom(GeomVectorField buildings, Schedule schedule, SimpleDrivers world, 
+	public static synchronized ArrayList<Driver> setupDriversAtRandom(GeomVectorField buildings, SimpleDrivers world, 
 			GeometryFactory fa, int numDrivers){
 		
 		ArrayList <Driver> agents = new ArrayList <Driver> ();
@@ -44,7 +45,7 @@ public class DriverUtilities {
 			//Point myPoint = mg.geometry.getCentroid();
 			//Coordinate myC = new Coordinate(myPoint.getX(), myPoint.getY());
 			Coordinate myC = (Coordinate) mg.geometry.getCoordinate().clone();
-			Driver a = new Driver(myC);
+			Driver a = new Driver(world, myC);
 			agents.add(a);
 			
 			world.schedule.scheduleOnce(a);
@@ -54,5 +55,25 @@ public class DriverUtilities {
 	}
 	
 
-	
+	public static synchronized ArrayList<Driver> setupDriversAtDepots(SimpleDrivers world, 
+			GeometryFactory fa, int numDrivers){
+		
+		ArrayList <Driver> agents = new ArrayList <Driver> ();
+		Bag myDepots = world.depotLayer.getGeometries();
+		int myDepotsSize = myDepots.numObjs;
+		
+		for(int i = 0; i < numDrivers; i++){
+			
+			Object o = myDepots.get(world.random.nextInt(myDepotsSize));
+			Depot depot = (Depot) o;
+			Coordinate myC = (Coordinate) depot.geometry.getCoordinate().clone();
+			Driver driver = new Driver(world, myC);
+			agents.add(driver);
+			
+			depot.enterDepot(driver);
+			//driver.setNode(depot.getNode());
+		}
+		
+		return agents;
+	}
 }

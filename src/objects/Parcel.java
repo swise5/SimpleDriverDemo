@@ -24,6 +24,8 @@ public class Parcel extends MobileAgent {
 		deliveryLocation = (Coordinate) c.clone();
 	}
 	
+	public Coordinate getDeliveryLocation(){ return deliveryLocation; }
+	
 	public Coordinate getLocation(){
 		if(carryingUnit != null) return carryingUnit.getLocation();
 		else return this.geometry.getCoordinate();

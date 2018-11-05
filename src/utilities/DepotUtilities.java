@@ -35,10 +35,8 @@ public class DepotUtilities {
 		double dy = height / roundsPerSide; // the height cut into those relative chunks
 		int xperRow = (int)Math.floor(roundsPerSide);
 		for(Parcel p: parcels){
-			Coordinate c = p.getLocation();
+			Coordinate c = p.getDeliveryLocation();
 			int myX = (int)Math.floor((c.x - minx) / dx), myY = (int)Math.floor((c.y - miny) / dy);
-			if(myX + myY * xperRow > rounds.size())
-				System.out.println("whyyyyyy");
 			rounds.get(myX + myY * xperRow).add(p);
 			p.addIntegerAttribute("round", myX + myY * xperRow);
 		}

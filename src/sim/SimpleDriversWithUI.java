@@ -24,7 +24,8 @@ public class SimpleDriversWithUI extends GUIState {
 
 	private GeomVectorFieldPortrayal roads = new GeomVectorFieldPortrayal();
 	private GeomVectorFieldPortrayal buildings = new GeomVectorFieldPortrayal();
-	private GeomVectorFieldPortrayal agents = new GeomVectorFieldPortrayal();
+	private GeomVectorFieldPortrayal drivers = new GeomVectorFieldPortrayal();
+	private GeomVectorFieldPortrayal deliveryLocations = new GeomVectorFieldPortrayal();
 
 	//SparseGridPortrayal2D driversPortrayal = new SparseGridPortrayal2D ();
 	public Display2D display;
@@ -65,10 +66,10 @@ public class SimpleDriversWithUI extends GUIState {
 		roads.setImmutableField(true);
 		
 		buildings.setField(world.buildingLayer);
-		buildings.setPortrayalForAll(new GeomPortrayal(new Color(150,150,150), true));
+		buildings.setPortrayalForAll(new GeomPortrayal(new Color(150,150,150, 100), true));
 		buildings.setImmutableField(true);
 		
-		agents.setField(world.agentsLayer);
+		deliveryLocations.setField(world.deliveryLocationLayer);
 		double [] levels = new double [100];
 		Color [] colors = new Color [100];
 		for(int i = 0; i < 100; i++){
@@ -76,10 +77,13 @@ public class SimpleDriversWithUI extends GUIState {
 			colors[i] = new Color(world.random.nextInt(255), world.random.nextInt(255), world.random.nextInt(255));
 		}
 		SegmentedColorMap scm = new SegmentedColorMap(levels, colors);
-		agents.setPortrayalForAll(new AttributePolyPortrayal(
+		deliveryLocations.setPortrayalForAll(new AttributePolyPortrayal(
 				scm,//new SimpleColorMap(0,100, Color.red, Color.green), 
-				"round", new Color(0,0,0,0), true, 20));//new GeomPortrayal(new Color(255,150,150), 20));
+				"round", new Color(0,0,0,0), true, 20));
 		//agents.setImmutableField(true);
+		
+		drivers.setField(world.agentLayer);
+		drivers.setPortrayalForAll(new GeomPortrayal(new Color(255,150,150), 20));
 		
 		display.reset();
 		display.setBackdrop(new Color(10,10,10));
@@ -96,7 +100,8 @@ public class SimpleDriversWithUI extends GUIState {
 
 		display.attach(buildings, "Buildings");
 		display.attach(roads, "Roads");
-		display.attach(agents, "Agents");
+		display.attach(deliveryLocations, "Delivery Locations", false);
+		display.attach(drivers, "Drivers");
 		
 		displayFrame = display.createFrame();
 		c.registerFrame(displayFrame); // register the frame so it appears in the "Display" list

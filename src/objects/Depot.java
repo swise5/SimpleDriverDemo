@@ -5,25 +5,39 @@ import java.util.ArrayList;
 import com.vividsolutions.jts.geom.Coordinate;
 
 import sim.SimpleDrivers;
+import sim.engine.SimState;
+import sim.engine.Steppable;
 import swise.agents.SpatialAgent;
+import swise.objects.network.GeoNode;
 
 public class Depot extends SpatialAgent implements Burdenable {
 
 	SimpleDrivers world;
 	
+	GeoNode myNode = null;
+	
 	ArrayList <Parcel> parcels;
+	ArrayList <ArrayList <Parcel>> rounds;
 
 	int numBays;
 	ArrayList <Driver> inBays;
 	ArrayList <Driver> waiting;
 	
-	public Depot (Coordinate c, SimpleDrivers world){
+	public Depot (Coordinate c, int numbays, SimpleDrivers world){
 		super(c);
 		parcels = new ArrayList <Parcel> ();
 		inBays = new ArrayList <Driver> ();
 		waiting = new ArrayList <Driver> ();
 		this.world = world;
+		this.numBays = numbays;
+		rounds = new ArrayList <ArrayList <Parcel>> ();
 	}
+	
+	public void setNode(GeoNode node){
+		myNode = node;
+	}
+	
+	public GeoNode getNode(){ return myNode;}
 	
 	@Override
 	public void addParcel(Parcel p) {
@@ -40,31 +54,69 @@ public class Depot extends SpatialAgent implements Burdenable {
 		return geometry.getCoordinate();
 	}
 	
+	@Override
+	public void step(SimState arg0){
+		world.schedule.scheduleOnce(this);
+	}
+	
 	/**
 	 * 
 	 * @param d - the driver
 	 * @return the amount of time before which to activate again. If <0, the Depot will
 	 * activate the Driver when ready. 
 	 */
-	int enterDepot(Driver d){
+	public int enterDepot(Driver d){
 		if(inBays.size() >= numBays){
 			waiting.add(d);
-			return -1;
+			world.schedule.scheduleOnce(new Steppable(){
+
+				@Override
+				public void step(SimState state) {
+					if(inBays.size() < numBays){
+						waiting.remove(d);
+						enterBay(d);
+					}
+					else
+						state.schedule.scheduleOnce(this);
+				}
+				
+			});
 		}
-		else
-			inBays.add(d);
+		else {
+			enterBay(d);
+			
+		}
+		
 		return SimpleDrivers.loadingTime;
+	}
+	
+	void enterBay(Driver d){
+		inBays.add(d);
+		if(rounds.size() <= 0)
+			leaveDepot(d);
+		
+		else
+			world.schedule.scheduleOnce(world.schedule.getTime() + world.loadingTime, new Steppable(){
+
+				@Override
+				public void step(SimState state) {
+					d.addParcels(rounds.remove(0));
+					leaveDepot(d);
+				}
+			
+			});
 	}
 	
 	/**
 	 * 
 	 * @param d the Driver to remove from the Depot
 	 */
-	void leaveDepot(Driver d){
+	public void leaveDepot(Driver d){
 		
 		// if the Driver was originally there, remove it
 		if(inBays.contains(d)){
 			inBays.remove(d);
+			world.schedule.scheduleOnce(d);
 			
 			// if there are Drivers waiting in the queue, let the next one move in
 			if(waiting.size() > 0){
@@ -75,5 +127,9 @@ public class Depot extends SpatialAgent implements Burdenable {
 		}
 		else
 			System.out.println("Error: driver was never in bay");
+	}
+	
+	public void addRounds(ArrayList <ArrayList <Parcel>> rounds){
+		this.rounds = rounds;
 	}
 }

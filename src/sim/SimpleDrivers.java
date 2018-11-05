@@ -52,14 +52,15 @@ import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
 import ec.util.MersenneTwisterFast;
+import objects.Depot;
 import objects.Driver;
 import objects.Parcel;
 
 /**
- * TakamatsuSim is the core of a simulation which projects the behavior of agents in the aftermath
- * of an incident.
+ * SimpleDriversDemo is an example of a simple ABM framework to explore different
+ * modes of delivery in Central London 
  * 
- * @author swise and Hitomi Nakanishi
+ * @author swise
  *
  */
 public class SimpleDrivers extends SimState {
@@ -83,23 +84,19 @@ public class SimpleDrivers extends SimState {
 	
 	String dirName = "data/";
 	
-/*	String record_speeds_filename = "speeds/speeds", 
-			record_sentiment_filename = "sentiments/sentiment",
-			record_heatmap_filename = "heatmaps/heatmap",
-			record_info_filename = "infos/info";
-
-	BufferedWriter record_speeds, record_sentiment, record_heatmap;
-	public BufferedWriter record_info;
-*/
 	//// END Data Sources ////////////////////////
 	
 	/////////////// Containers ///////////////////////////////////////
 
 //	public GeomVectorField baseLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField roadLayer = new GeomVectorField(grid_width, grid_height);
+	public GeomVectorField depotLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField buildingLayer = new GeomVectorField(grid_width, grid_height);
-	public GeomVectorField agentsLayer = new GeomVectorField(grid_width, grid_height);
+	public GeomVectorField deliveryLocationLayer = new GeomVectorField(grid_width, grid_height);
+	public GeomVectorField agentLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField parkingLayer = new GeomVectorField(grid_width, grid_height);
+	
+	
 	
 	public GeomVectorField networkLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField networkEdgeLayer = new GeomVectorField(grid_width, grid_height);	
@@ -122,7 +119,6 @@ public class SimpleDrivers extends SimState {
 	HashMap <MasonGeometry, ArrayList <GeoNode>> localNodes;
 	public Bag terminus_points = new Bag();
 
-	MediaInstance media = new MediaInstance();
 	public ArrayList <Driver> agents = new ArrayList <Driver> (10);
 	public Network agentSocialNetwork = new Network();
 
@@ -167,7 +163,9 @@ public class SimpleDrivers extends SimState {
 			///////////// READING IN DATA ////////////////
 			//////////////////////////////////////////////
 		
+			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "buildings.shp", "buildings", new Bag());
+			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsMajor.shp", "road network", new Bag());
 			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parking.shp", "road network", new Bag());
 						
@@ -180,8 +178,8 @@ public class SimpleDrivers extends SimState {
 			MBR = buildingLayer.getMBR();
 			MBR.init(525044, 535806, 176259, 184098);
 
-			this.grid_width = buildingLayer.fieldWidth / 3;
-			this.grid_height = buildingLayer.fieldHeight / 3;
+		//	this.grid_width = buildingLayer.fieldWidth / 3;
+		//	this.grid_height = buildingLayer.fieldHeight / 3;
 
 			heatmap = new GeomGridField();
 			heatmap.setMBR(MBR);
@@ -257,12 +255,9 @@ public class SimpleDrivers extends SimState {
 
 			System.gc();
 			
-	/*		agents.addAll(DriverUtilities.setupDriversAtRandom(networkLayer, schedule, this, fa, 10));
-			for(Driver p: agents){
-				agentsLayer.addGeometry(p);
-			}
-*/
 
+			// set up depots
+			setupDepots(dummyDepotLayer);
 			
 			// reset MBRS in case it got messed up during all the manipulation
 		
@@ -271,10 +266,9 @@ public class SimpleDrivers extends SimState {
 			networkLayer.setMBR(MBR);
 			networkEdgeLayer.setMBR(MBR);
 			majorRoadNodesLayer.setMBR(MBR);
-			agentsLayer.setMBR(MBR);
+			deliveryLocationLayer.setMBR(MBR);
+			agentLayer.setMBR(MBR);
 			parkingLayer.setMBR(MBR);
-
-			generateRandomParcels();
 
 			
 			System.out.println("done");
@@ -283,6 +277,18 @@ public class SimpleDrivers extends SimState {
 			//////////////////////////////////////////////
 			////////////////// AGENTS ///////////////////
 			//////////////////////////////////////////////
+
+			for(Object o: depotLayer.getGeometries()){
+				Depot d = (Depot) o;
+				generateRandomParcels(d);
+			}
+
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 10));
+			for(Driver p: agents){
+				agentLayer.addGeometry(p);
+			}
+
+		
 
 			// set up the agents in the simulation
 /*			setupPersonsFromFile(dirName + agentFilename);
@@ -328,13 +334,100 @@ public class SimpleDrivers extends SimState {
 			// seed the simulation randomly
 			seedRandom(System.currentTimeMillis());
 
-			// schedule the reporter to run
-			setupReporter();
-
 		} catch (Exception e) { e.printStackTrace();}
     }
 	
-	public void generateRandomParcels(){
+	public void setupDepots(GeomVectorField dummyDepots){
+		Bag depots = dummyDepots.getGeometries();
+		for(Object o: depots){
+			MasonGeometry mg = (MasonGeometry) o;
+			int numbays = mg.getIntegerAttribute("loadbays");
+			GeoNode gn = snapPointToNode(mg.geometry.getCoordinate());
+			
+			Depot d = new Depot(gn.geometry.getCoordinate(), numbays, this);
+			d.setNode(gn);
+
+			depotLayer.addGeometry(d);
+			schedule.scheduleOnce(d);
+		}
+	}
+	
+	public Coordinate snapPointToRoadNetwork(Coordinate c) {
+		ListEdge myEdge = null;
+		double resolution = this.resolution;
+
+		if (networkEdgeLayer.getGeometries().size() == 0)
+			return null;
+
+		while (myEdge == null && resolution < Double.MAX_VALUE) {
+			myEdge = RoadNetworkUtilities.getClosestEdge(c, resolution, networkEdgeLayer, fa);
+			resolution *= 10;
+		}
+		if (resolution == Double.MAX_VALUE)
+			return null;
+
+		LengthIndexedLine closestLine = new LengthIndexedLine(
+				(LineString) (((MasonGeometry) myEdge.info).getGeometry()));
+		double myIndex = closestLine.indexOf(c);
+		return closestLine.extractPoint(myIndex);
+	}
+	
+	public GeoNode snapPointToNode(Coordinate c){
+		ListEdge myEdge = null;
+		double resolution = this.resolution;
+
+		if (networkEdgeLayer.getGeometries().size() == 0)
+			return null;
+
+		while (myEdge == null && resolution < Double.MAX_VALUE) {
+			myEdge = RoadNetworkUtilities.getClosestEdge(c, resolution, networkEdgeLayer, fa);
+			resolution *= 10;
+		}
+		if (resolution == Double.MAX_VALUE)
+			return null;
+
+		double distFrom = c.distance(((GeoNode)myEdge.from()).geometry.getCoordinate()),
+				distTo = c.distance(((GeoNode)myEdge.to()).geometry.getCoordinate());
+		if(distFrom <= distTo)
+			return (GeoNode) myEdge.from();
+		else
+			return (GeoNode) myEdge.to();
+	}
+	
+	public static ListEdge getClosestEdge(Coordinate c, double resolution, GeomVectorField networkEdgeLayer, GeometryFactory fa){
+
+		// find the set of all edges within *resolution* of the given point
+		Bag objects = networkEdgeLayer.getObjectsWithinDistance(fa.createPoint(c), resolution);
+		if(objects == null || networkEdgeLayer.getGeometries().size() <= 0) 
+			return null; // problem with the network edge layer
+		
+		Point point = fa.createPoint(c);
+		
+		// find the closest edge among the set of edges
+		double bestDist = resolution;
+		ListEdge bestEdge = null;
+		for(Object o: objects){
+			double dist = ((MasonGeometry)o).getGeometry().distance(point);
+			if(dist < bestDist){
+				bestDist = dist;
+				bestEdge = (ListEdge) ((AttributeValue) ((MasonGeometry) o).getAttribute("ListEdge")).getValue();
+			}
+		}
+		
+		// if it exists, return it
+		if(bestEdge != null)
+			return bestEdge;
+		
+		// otherwise return failure
+		else
+			return null;
+	}
+	
+	public void generateRandomParcels(Depot d){
+		
+		// pull out the depots in which to initialise them
+		Bag b = depotLayer.getGeometries();
+		
 		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
 		for(int i = 0; i < numParcels; i++){				
 			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
@@ -345,71 +438,18 @@ public class SimpleDrivers extends SimState {
 				continue;
 			}
 			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
-			
-			Parcel p = new Parcel(myc);
+					
+			Parcel p = new Parcel(d.geometry.getCoordinate());
 			p.setDeliveryLocation(myc);
-			agentsLayer.addGeometry(p);
+			deliveryLocationLayer.addGeometry(p);
 			myParcels.add(p);
+			
+			((Depot)d).addParcel(p);
 		}
 		
-		rounds = DepotUtilities.gridDistribution(myParcels, agentsLayer, 10);
+		d.addRounds(DepotUtilities.gridDistribution(myParcels, deliveryLocationLayer, 10));
 	}
-	
-	/**
-	 * Schedule the regular 
-	 */
-	public void setupReporter() {
 
-/*		// set up the reporting files
-		try {
-			String mySettings = communication_success_prob + "_" + contact_success_prob + "_" 
-					+ tweet_prob + "_" + retweet_prob + "_" + comfortDistance + "_" + 
-					observationDistance + "_" + decayParam + "_" + speed + "_";
-
-			record_sentiment = new BufferedWriter(new FileWriter(dirName
-					+ record_sentiment_filename + mySettings + mySeed + ".txt"));
-			record_speeds = new BufferedWriter(new FileWriter(dirName
-					+ record_speeds_filename + mySettings + mySeed + ".txt"));
-
-			record_info = new BufferedWriter(new FileWriter(dirName
-					+ record_info_filename + mySettings + mySeed + ".txt"));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		// schedule the simulation to report on Persons every tick
-		this.schedule.scheduleRepeating(0, 10000, new Steppable() {
-
-			DecimalFormat formatter = new DecimalFormat("#.##");
-
-			@Override
-			synchronized public void step(SimState state) {
-				try {
-					int time = (int) state.schedule.getTime();
-
-					String speeds = time + "", sentiments = "";
-					int numSentPersons = 0;
-					for (Person a : agents) {
-						if (a.getActivity() == Person.activity_evacuate || a.getActivity() == Person.activity_travel)
-							speeds += "\t" + Math.max(0, a.myLastSpeed);
-						if (a.getValence() > 0) {
-							sentiments += "\t" + formatter.format(a.getValence());
-							numSentPersons++;
-						}
-					}
-					record_sentiment.write(time + "\t" + numSentPersons + sentiments + "\n");
-					record_speeds.write(speeds + "\n");
-
-					record_sentiment.flush();
-					record_speeds.flush();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}, 12);
-		*/
-	}
-	
 
 	/**
 	 * Finish the simulation and clean up
@@ -480,99 +520,6 @@ public class SimpleDrivers extends SimState {
 	
 
 	
-	/**
-	 * Set up the evacuation orders from the given file
-	 * @param filename
-	 */
-/*	public void setupCommunicators(String filename){
-		try {
-			
-			// Open the communicators file
-			FileInputStream fstream = new FileInputStream(filename);
-			
-			// Convert our input stream to a BufferedReader
-			BufferedReader communicatorData = new BufferedReader(new InputStreamReader(fstream));
-			String s;
-			
-			while ((s = communicatorData.readLine()) != null) {
-				String[] bits = s.split("\t");
-				
-				int time = Integer.parseInt(bits[0]);
-				
-				// create the evacuation orders as appropriate
-				if(bits[1].equals("EvacuationOrder")){
-					Geometry evacZone = null;
-					for(Object o: evacuationAreas.getGeometries()){
-						if(((MasonGeometry)o).getStringAttribute("zone").equals(bits[2])){
-							evacZone = ((MasonGeometry)o).geometry;
-							break;
-						}
-					}
-					
-					// if the area has a proper evacuation zone, store that in the media object
-					if(evacZone != null)
-						media.learnAbout(null, new EvacuationOrder(evacZone, time, null));;
-				}
-					
-			}
-			
-			// schedule the media object to push out the information when appropriate
-			if(media.storage.size() > 0)
-				schedule.scheduleOnce(media.storage.get(0).getTime(), media);
-			
-			// clean up
-			communicatorData.close();
-			
-		} catch (Exception e) {
-			System.err.println("File input error: " + filename);
-		}
-
-	}
-*/	
-	/**
-	 * Media object which pushes information out into the social media network
-	 * upon a pre-appointed timetable
-	 * @author swise
-	 *
-	 */
-	public class MediaInstance implements Communicator, Steppable {
-
-		ArrayList <Information> storage = new ArrayList <Information> ();
-		ArrayList <Information> socialMediaPosts = new ArrayList <Information> ();
-
-		@Override
-		public ArrayList getInformationSince(double time) {
-			ArrayList <Object> result = new ArrayList <Object> ();
-			for(Object o: socialMediaPosts){
-				long myTime = ((Information)o).getTime();
-				if(myTime >= time)
-					result.add(o);
-			}
-			return result;
-		}
-
-		@Override
-		public void learnAbout(Object o, Information i) {
-			storage.add(i);			
-		}
-
-		@Override
-		public void step(SimState state) {
-			Information i = storage.get(0);
-			if(i.getTime() <= state.schedule.getTime()){
-				socialMediaPosts.add(i);
-				storage.remove(0);
-			}
-			if(storage.size() > 0)
-				schedule.scheduleOnce(storage.get(0).getTime(), this);
-		}
-		
-	}
-	
-
-
-	
-
 
 	/**
 	 * RoadClosure structure holds information about a road closure
@@ -583,16 +530,6 @@ public class SimpleDrivers extends SimState {
 		}
 	}
 	
-	/**
-	 * EvacuationOrder structure holds information about an evacuation order
-	 */
-	public class EvacuationOrder extends Information {
-		public Geometry extent = null;
-		public EvacuationOrder(Object o, long time, Object source) {
-			super(o, time, source, 8);
-			extent = (Geometry) o;
-		}		
-	}
 	
 	/** set the seed of the random number generator */
 	void seedRandom(long number){
@@ -604,30 +541,10 @@ public class SimpleDrivers extends SimState {
 	public void resetLayers(){
 		MBR = buildingLayer.getMBR();
 		//MBR.init(501370, 521370, 4292000, 4312000);
-		this.agentsLayer.setMBR(MBR);
+		this.deliveryLocationLayer.setMBR(MBR);
 		this.roadLayer.setMBR(MBR);
 	}
 
-	
-	public Coordinate snapPointToRoadNetwork(Coordinate c) {
-		ListEdge myEdge = null;
-		double resolution = this.resolution;
-
-		if (networkEdgeLayer.getGeometries().size() == 0)
-			return null;
-
-		while (myEdge == null && resolution < Double.MAX_VALUE) {
-			myEdge = RoadNetworkUtilities.getClosestEdge(c, resolution, networkEdgeLayer, fa);
-			resolution *= 10;
-		}
-		if (resolution == Double.MAX_VALUE)
-			return null;
-
-		LengthIndexedLine closestLine = new LengthIndexedLine(
-				(LineString) (((MasonGeometry) myEdge.info).getGeometry()));
-		double myIndex = closestLine.indexOf(c);
-		return closestLine.extractPoint(myIndex);
-	}
 
 	/**
 	 * To run the model without visualization
@@ -640,28 +557,19 @@ public class SimpleDrivers extends SimState {
 			System.exit(0);
 		}
 		
-		SimpleDrivers hspot = new SimpleDrivers(System.currentTimeMillis());
+		SimpleDrivers simpleDrivers = new SimpleDrivers(System.currentTimeMillis());
 		
-/*		hspot.communication_success_prob = Double.parseDouble(args[0]);
-		hspot.contact_success_prob = Double.parseDouble(args[1]);
-		hspot.tweet_prob = Double.parseDouble(args[2]);
-		hspot.retweet_prob = Double.parseDouble(args[3]);
-		hspot.comfortDistance = Double.parseDouble(args[4]);
-		hspot.observationDistance = Double.parseDouble(args[5]);
-		hspot.decayParam = Double.parseDouble(args[6]);
-		hspot.speed = Double.parseDouble(args[7]);
-*/		
 		System.out.println("Loading...");
 
-		hspot.start();
+		simpleDrivers.start();
 
 		System.out.println("Running...");
 
 		for(int i = 0; i < 288 * 3; i++){
-			hspot.schedule.step(hspot);
+			simpleDrivers.schedule.step(simpleDrivers);
 		}
 		
-		hspot.finish();
+		simpleDrivers.finish();
 		
 		System.out.println("...run finished");
 
