@@ -27,7 +27,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	double roundStartTime = -1;
 	double roundDistance = 0;
 
-	ArrayList <Parcel> parcels;
+	ArrayList <Parcel> parcels = new ArrayList <Parcel> ();
+	ArrayList <Parcel> myRound = new ArrayList <Parcel> ();
 	ArrayList <String> history = new ArrayList <String> ();
 
 	int index = 0;
@@ -37,6 +38,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	double enteredRoadSegment = -1;
 
 	Parcel currentDelivery = null;
+	Vehicle myVehicle = null;
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -72,6 +74,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	public void startRoundClock(){
 		roundStartTime = world.schedule.getTime();
 		roundDistance = 0;
+		updateRound();
 	}
 	
 	@Override
@@ -90,6 +93,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			}
 			else {
 				this.removeParcel(currentDelivery);
+				myRound.remove(currentDelivery);
 				System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
 				currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
 				world.deliveryLocationLayer.addGeometry(currentDelivery);
@@ -114,7 +118,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			Parcel nextParcel = parcels.get(index);
 			currentDelivery = nextParcel;
 			headFor(nextParcel.deliveryLocation);
-			roundDistance = calculateDistance(path);
+			roundDistance += calculateDistance(path);
+			world.schedule.scheduleOnce(this);
+			return;
+		}
+		
+		else if(myRound.size() > 0){
+			// TODO assumes I'm at the vehicle!!!!
+			Parcel nextParcel = myRound.get(0);
+			nextParcel.transfer(myVehicle, this);
+			currentDelivery = nextParcel;
+			headFor(nextParcel.deliveryLocation);
+			roundDistance += calculateDistance(path);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
@@ -148,7 +163,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	@Override
 	public void addParcel(Parcel p) {
 		parcels.add(p);
-		updateRound();
 	}
 
 	@Override
@@ -164,29 +178,33 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	@Override
 	public void addParcels(ArrayList<Parcel> ps) {
 		parcels.addAll(ps);
-		updateRound();
 	}
 
 	// really basic right now: start with the first one and greedily pick the next closest, until you have them all
-	void updateRound(){
-		if(parcels.size() <= 1) return;
+	public void updateRound(){
+		if(parcels.size() <= 1 && (myVehicle != null && myVehicle.parcels.size() <= 1)) return;
 		
-		for(int i = 1; i < parcels.size(); i++){
-			Parcel p = parcels.get(i - 1);
+		ArrayList <Parcel> tempParcels = new ArrayList <Parcel> (parcels);
+		if(myVehicle != null)
+			tempParcels.addAll(myVehicle.parcels);
+		
+		for(int i = 1; i < tempParcels.size(); i++){
+			Parcel p = tempParcels.get(i - 1);
 			double dist = Double.MAX_VALUE;
 			int best = -1;
 			
-			for(int j = i; j < parcels.size(); j++){
-				Parcel pj = parcels.get(j);
+			for(int j = i; j < tempParcels.size(); j++){
+				Parcel pj = tempParcels.get(j);
 				double pjdist = pj.deliveryLocation.distance(p.deliveryLocation);
 				if(pjdist < dist){
 					dist = pjdist;
 					best = j;
 				}
 			}
-			Parcel closestParcel = parcels.remove(best);
-			parcels.add(i, closestParcel);
+			Parcel closestParcel = tempParcels.remove(best);
+			tempParcels.add(i, closestParcel);
 		}
+		myRound = tempParcels;
 	}
 	
 	@Override
@@ -522,6 +540,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			result += ((MasonGeometry)e.info).geometry.getLength();
 		}
 		return result;
+	}
+	
+	public void assignVehicle(Vehicle v){
+		myVehicle = v;
 	}
 	
 	public ArrayList <String> getHistory() {return history; }

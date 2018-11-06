@@ -139,10 +139,16 @@ public class Depot extends SpatialAgent implements Burdenable {
 				@Override
 				public void step(SimState state) {
 					ArrayList <Parcel> newRound = getNextRound();
-					transferTo(newRound, d);
+					if(d.myVehicle != null){
+						transferTo(newRound, d.myVehicle);	
+						d.updateRound();
+					}
+					else
+						d.addParcels(newRound);
+					
 					System.out.println(d.toString() + " has taken on a new load: " + newRound.toArray().toString());
-					d.addParcels(newRound);
 					leaveDepot(d);
+					d.startRoundClock();
 				}
 			
 			});
@@ -164,7 +170,6 @@ public class Depot extends SpatialAgent implements Burdenable {
 				Driver n = waiting.remove(0);
 				inBays.add(n);
 				world.schedule.scheduleOnce(world.schedule.getTime() + SimpleDrivers.loadingTime, n);
-				n.startRoundClock();
 			}
 		}
 		else

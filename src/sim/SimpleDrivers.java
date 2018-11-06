@@ -55,6 +55,7 @@ import ec.util.MersenneTwisterFast;
 import objects.Depot;
 import objects.Driver;
 import objects.Parcel;
+import objects.Vehicle;
 
 /**
  * SimpleDriversDemo is an example of a simple ABM framework to explore different
@@ -78,10 +79,10 @@ public class SimpleDrivers extends SimState {
 
 	public static int loadingTime = 20;
 	public static int deliveryTime = 3;
-	public static int approxManifestSize = 20;
+	public static int approxManifestSize = 100;
 
-	public static int numParcels = 1000;
-	public static double probFailedDelivery = .3;
+	public static int numParcels = 10000;
+	public static double probFailedDelivery = .1;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
@@ -262,6 +263,8 @@ public class SimpleDrivers extends SimState {
 			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 10));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
+				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
+				p.assignVehicle(v);
 			}
 
 		
