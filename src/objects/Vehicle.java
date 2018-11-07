@@ -13,7 +13,7 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	ArrayList <Parcel> parcels = new ArrayList <Parcel> ();
 	
 	public Vehicle(Coordinate c, Driver d){
-		super(c);
+		super((Coordinate)c.clone());
 		isMovable = true;
 		owner = d;
 	}
@@ -60,4 +60,17 @@ public class Vehicle extends MobileAgent implements Burdenable {
 		}
 	}
 	
+	void setStationary(){
+		if(owner != null){
+			Coordinate c = owner.getLocation();
+			updateLoc(new Coordinate(c.x, c.y));
+			owner = null;
+		}
+		else
+			updateLoc(getLocation());
+	}
+	
+	void setDriver(Driver d){
+		this.owner = d;
+	}
 }

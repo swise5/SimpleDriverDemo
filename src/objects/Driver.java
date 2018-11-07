@@ -25,7 +25,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	Coordinate homeBase = null;
 	Coordinate targetDestination = null;
 	double roundStartTime = -1;
-	double roundDistance = 0;
+	double roundDriveDistance = 0, roundWalkDistance = 0;
 
 	ArrayList <Parcel> parcels = new ArrayList <Parcel> ();
 	ArrayList <Parcel> myRound = new ArrayList <Parcel> ();
@@ -39,6 +39,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	Parcel currentDelivery = null;
 	Vehicle myVehicle = null;
+	boolean inVehicle = false;
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -73,7 +74,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	
 	public void startRoundClock(){
 		roundStartTime = world.schedule.getTime();
-		roundDistance = 0;
+		roundDriveDistance = 0;
+		roundWalkDistance = 0;
 		updateRound();
 	}
 	
@@ -83,25 +85,58 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		double time = world.schedule.getTime(); // find the current time
 
-		// if you've arrived at the delivery point, deliver the parcel!
-		if(currentDelivery != null && geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution){
+		// if you're in the process of delivering it, proceed
+		if (currentDelivery != null && path != null && path.size() == 0) {
 			
-			//attempt delivery
-			if(world.random.nextDouble() < world.probFailedDelivery){
-				index++;
-				System.out.println(this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
+			// if you've arrived at the delivery point, try to deliver the parcel!
+			if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
+
+				// attempt delivery
+				if (world.random.nextDouble() < world.probFailedDelivery) { // failed delivery ):
+					index++;
+					System.out.println(
+							this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
+				} else { // successful delivery!
+					this.removeParcel(currentDelivery);
+					myRound.remove(currentDelivery);
+					System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
+					currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
+					world.deliveryLocationLayer.addGeometry(currentDelivery);
+				}
+
+				world.schedule.scheduleOnce(time + world.deliveryTime, this);
+				currentDelivery = null;
+
+				return;
 			}
+
+			// get out of the car!!
 			else {
-				this.removeParcel(currentDelivery);
-				myRound.remove(currentDelivery);
-				System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
-				currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
-				world.deliveryLocationLayer.addGeometry(currentDelivery);
+				roundWalkDistance += 2 * getLocation().distance(currentDelivery.deliveryLocation);
+				inVehicle = false;
+				myVehicle.setStationary();
+				this.walkTo(currentDelivery.deliveryLocation, world.resolution);
+				world.schedule.scheduleOnce(this);
+				return;
+			}
+		}
+		
+		// if you've just finished the delivery, go back to the vehicle
+		else if (inVehicle == false) {
+			
+			// either walk toward it or get in it!
+			if (geometry.getCoordinate().distance(myVehicle.getLocation()) > world.resolution) {
+				this.walkTo(myVehicle.getLocation(), world.resolution);
 			}
 
-			world.schedule.scheduleOnce(time + world.deliveryTime, this);
-			currentDelivery = null;
+			// get in the vehicle!
+			else {
+				path = null;
+				inVehicle = true;
+				myVehicle.setDriver(this);
+			}
 
+			world.schedule.scheduleOnce(this);
 			return;
 		}
 		
@@ -118,7 +153,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			Parcel nextParcel = parcels.get(index);
 			currentDelivery = nextParcel;
 			headFor(nextParcel.deliveryLocation);
-			roundDistance += calculateDistance(path);
+			roundDriveDistance += calculateDistance(path);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
@@ -129,7 +164,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			nextParcel.transfer(myVehicle, this);
 			currentDelivery = nextParcel;
 			headFor(nextParcel.deliveryLocation);
-			roundDistance += calculateDistance(path);
+			roundDriveDistance += calculateDistance(path);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
@@ -146,7 +181,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		else {
 			
 			double roundTime = world.schedule.getTime() - roundStartTime;
-			history.add(this.toString() + "\t" + roundTime + "\t" + roundDistance);
+			history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
 			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
 			Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
 			if(b.size() > 0){
@@ -155,6 +190,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 				if(parcels.size() > 0){
 					System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
 					transferTo(parcels, d);
+					if(myVehicle != null)
+						myVehicle.transferTo(myVehicle.parcels, d);
 				}
 			}
 		}		
@@ -257,6 +294,16 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 				return 1;
 		}
 		return -1;		
+	}
+	
+	public int walkTo(Coordinate c, double resolution){
+		Coordinate myLoc = geometry.getCoordinate();
+		double dx = c.x - myLoc.x, dy = c.y - myLoc.y;
+		double normalisationFactor = Math.sqrt(dx * dx + dy * dy);
+		double moveFactor = world.speed_pedestrian / normalisationFactor;
+		Coordinate newLoc = new Coordinate(myLoc.x + moveFactor * dx, myLoc.y + moveFactor * dy);
+		updateLoc(newLoc);
+		return 1;
 	}
 	
 	/**
@@ -544,6 +591,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	
 	public void assignVehicle(Vehicle v){
 		myVehicle = v;
+		inVehicle = true;
 	}
 	
 	public ArrayList <String> getHistory() {return history; }

@@ -405,9 +405,15 @@ public class SimpleDrivers extends SimState {
 	public void generateRandomParcels(Depot d){
 		
 		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
-		for(int i = 0; i < numParcels; i++){				
-			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
-			Coordinate myc = gn.getGeometry().getCoordinate();
+		Bag buildings = buildingLayer.getGeometries();
+		
+		for(int i = 0; i < numParcels; i++){
+			
+			Point deliveryLoc = ((MasonGeometry)buildings.get(random.nextInt(buildings.size()))).geometry.getCentroid();
+			Coordinate myc = deliveryLoc.getCoordinate();
+			
+//			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
+//			Coordinate myc = gn.getGeometry().getCoordinate();
 			
 			if(!MBR.contains(myc)){
 				i--;
