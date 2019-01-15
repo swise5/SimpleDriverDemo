@@ -33,7 +33,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	int index = 0;
 	public Stoppable stopper = null;
-	double speed = 3.;
+	double speed = 3.; // m per second
 	
 	double enteredRoadSegment = -1;
 

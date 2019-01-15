@@ -50,6 +50,7 @@ public class Parcel extends MobileAgent {
 			// TODO make it move away!!
 			carryingUnit.removeParcel(this);
 			status = 3;
+			updateLoc(deliveryLocation);
 			return true;
 		}
 		status = 1;

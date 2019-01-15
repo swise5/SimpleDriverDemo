@@ -82,7 +82,7 @@ public class SimpleDrivers extends SimState {
 	public static int approxManifestSize = 100;
 
 	public static int numParcels = 10000;
-	public static double probFailedDelivery = .1;
+	public static double probFailedDelivery = .126;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
