@@ -5,8 +5,8 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.logging.Level;
 
-import com.srbenoit.math.delaunay.Delaunay;
-import com.srbenoit.math.delaunay.Vertex;
+//import com.srbenoit.math.delaunay.Delaunay;
+//import com.srbenoit.math.delaunay.Vertex;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
 
