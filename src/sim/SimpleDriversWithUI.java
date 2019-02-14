@@ -62,7 +62,7 @@ public class SimpleDriversWithUI extends GUIState {
 		SimpleDrivers world = (SimpleDrivers) state;
 		
 		roads.setField(world.roadLayer);
-		roads.setPortrayalForAll(new GeomPortrayal(new Color(100,100,100, 50), 2, false));
+		roads.setPortrayalForAll(new GeomPortrayal(new Color(100,100,100, 100), 2, false));
 		roads.setImmutableField(true);
 		
 		buildings.setField(world.buildingLayer);

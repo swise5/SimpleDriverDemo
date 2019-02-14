@@ -9,6 +9,5 @@
 	<classpathentry combineaccessrules="false" kind="src" path="/mason19"/>
 	<classpathentry kind="lib" path="/takamatsu/libs/geomason.1.5.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/swiselib"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/benoit"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
