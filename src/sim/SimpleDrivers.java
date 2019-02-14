@@ -157,7 +157,7 @@ public class SimpleDrivers extends SimState {
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "buildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsMajor.shp", "road network", new Bag());
-			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parking.shp", "road network", new Bag());
+			InputCleaning.readInVectorLayer(parkingLayer, dirName + "camdenFreight.shp", "road network", new Bag());
 						
 			//////////////////////////////////////////////
 			////////////////// CLEANUP ///////////////////
@@ -166,7 +166,7 @@ public class SimpleDrivers extends SimState {
 			// standardize the MBRs so that the visualization lines up
 			
 			MBR = buildingLayer.getMBR();
-			MBR.init(525044, 535806, 176259, 184098);
+			MBR.init(525044, 535806, 178959, 186798);
 
 			heatmap = new GeomGridField();
 			heatmap.setMBR(MBR);
@@ -254,9 +254,20 @@ public class SimpleDrivers extends SimState {
 			////////////////// AGENTS ///////////////////
 			//////////////////////////////////////////////
 
+			// first calculate the area within which to distribute parcels
+			Geometry parkingArea = null;
+			for(Object o: parkingLayer.getGeometries()){
+				MasonGeometry mg = (MasonGeometry) o;
+				if(parkingArea == null) parkingArea = (Geometry) mg.geometry.clone();
+				else parkingArea = mg.geometry.union(parkingArea);
+			}
+			parkingArea = parkingArea.convexHull();
+
+			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
-				generateRandomParcels(d);
+				//generateRandomParcels(d);
+				generateRandomParcelsInArea(d, parkingArea);
 				d.generateRounds();
 			}
 
@@ -266,49 +277,6 @@ public class SimpleDrivers extends SimState {
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
 				p.assignVehicle(v);
 			}
-
-		
-
-			// set up the agents in the simulation
-/*			setupPersonsFromFile(dirName + agentFilename);
-			agentsLayer.setMBR(MBR);
-			
-			// for each of the Persons, set up relevant, environment-specific information
-			int aindex = 0;
-			for(Person a: agents){
-				
-				if(a.familiarRoadNetwork == null){
-					
-					// the Person knows about major roads
-					Network familiar = majorRoads.cloneGraph();
-
-					// connect the major network to the Person's location
-					connectToMajorNetwork(a.getNode(), familiar);
-					
-					a.familiarRoadNetwork = familiar;
-
-					// add local roads into the network
-					for(Object o: agentsLayer.getObjectsWithinDistance(a, 50)){
-						Person b = (Person) o;
-						if(b == a || b.familiarRoadNetwork != null || b.getNode() != a.getNode()) continue;
-						b.familiarRoadNetwork = familiar.cloneGraph();
-					}
-
-				}
-				
-				// connect the Person's work into its personal network
-				if(a.getWork() != null)
-					connectToMajorNetwork(getClosestGeoNode(a.getWork()), a.familiarRoadNetwork);
-				
-				// set up its basic paths (fast and quicker and recomputing each time)
-				a.setupPaths();
-
-				if(aindex % 100 == 0){ // print report of progress
-					System.out.println("..." + aindex + " of " + agents.size());
-				}
-				aindex++;
-			}
-*/
 
 			// seed the simulation randomly
 			seedRandom(System.currentTimeMillis());
@@ -427,6 +395,35 @@ public class SimpleDrivers extends SimState {
 		}		
 	}
 
+	public void generateRandomParcelsInArea(Depot d, Geometry g){
+		
+		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
+		Bag buildings = buildingLayer.getGeometries();
+		
+		for(int i = 0; i < numParcels; i++){
+			
+			Geometry buildingGeom = ((MasonGeometry)buildings.get(random.nextInt(buildings.size()))).geometry;
+			Point deliveryLoc = buildingGeom.getCentroid();
+			Coordinate myc = deliveryLoc.getCoordinate();
+			
+//			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
+//			Coordinate myc = gn.getGeometry().getCoordinate();
+			
+			if(!MBR.contains(myc)){
+				i--;
+				continue;
+			}
+			else if(g.distance(buildingGeom) > 200){
+				i--;
+				continue;
+			}
+			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
+					
+			Parcel p = new Parcel(d);
+			p.setDeliveryLocation(myc);
+			myParcels.add(p);			
+		}		
+	}
 
 	/**
 	 * Finish the simulation and clean up
