@@ -71,7 +71,7 @@ public class SimpleDrivers extends SimState {
 	private static final long serialVersionUID = 1L;
 	public static int grid_width = 800;
 	public static int grid_height = 500;
-	public static double resolution = 5;// the granularity of the simulation 
+	public static double resolution = 2;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
 	public static double speed_pedestrian = 7;
@@ -81,7 +81,7 @@ public class SimpleDrivers extends SimState {
 	public static int deliveryTime = 3;
 	public static int approxManifestSize = 100;
 
-	public static int numParcels = 10000;
+	public static int numParcels = 100;
 	public static double probFailedDelivery = .126;
 	
 	/////////////// Data Sources ///////////////////////////////////////
@@ -154,23 +154,30 @@ public class SimpleDrivers extends SimState {
 			//////////////////////////////////////////////
 		
 			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
-			InputCleaning.readInVectorLayer(buildingLayer, dirName + "buildings.shp", "buildings", new Bag());
+			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
-			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsMajor.shp", "road network", new Bag());
-			InputCleaning.readInVectorLayer(parkingLayer, dirName + "camdenFreight.shp", "road network", new Bag());
+			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
+			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
 						
 			//////////////////////////////////////////////
 			////////////////// CLEANUP ///////////////////
 			//////////////////////////////////////////////
 
-			// standardize the MBRs so that the visualization lines up
-			
+			//MBR = roadLayer.getMBR();
 			MBR = buildingLayer.getMBR();
-			MBR.init(525044, 535806, 178959, 186798);
-
-			heatmap = new GeomGridField();
-			heatmap.setMBR(MBR);
-			heatmap.setGrid(new IntGrid2D((int)(MBR.getWidth() / 100), (int)(MBR.getHeight() / 100), 0));
+//			MBR.init(525044, 535806, 178959, 186798);
+			//MBR.init(531000, 534000, 180000, 182400);
+			
+			buildingLayer.setMBR(MBR);
+			roadLayer.setMBR(MBR);			
+			networkLayer.setMBR(MBR);
+			networkEdgeLayer.setMBR(MBR);
+			majorRoadNodesLayer.setMBR(MBR);
+			deliveryLocationLayer.setMBR(MBR);
+			agentLayer.setMBR(MBR);
+			parkingLayer.setMBR(MBR);
+			
+			System.out.println("done");
 
 			
 			// clean up the road network
@@ -199,13 +206,15 @@ public class SimpleDrivers extends SimState {
 					
 				}
 			}
+			
+			roadLayer.setMBR(MBR);
 
 
 			/////////////////////
 			///////// Clean up roads for Persons to use ///////////
 			/////////////////////
 						
-			Network majorRoads = RoadNetworkUtilities.extractMajorRoads(roads);
+/*			Network majorRoads = RoadNetworkUtilities.extractMajorRoads(roads);
 			RoadNetworkUtilities.testNetworkForIssues(majorRoads);
 
 			// assemble list of secondary versus local roads
@@ -228,7 +237,7 @@ public class SimpleDrivers extends SimState {
 							localRoadsLayer.addGeometry((MasonGeometry) ed.getInfo());					
 				}
 			}
-
+*/
 			System.gc();
 			
 
@@ -236,18 +245,14 @@ public class SimpleDrivers extends SimState {
 			setupDepots(dummyDepotLayer);
 			
 			// reset MBRs in case they got messed up during all the manipulation
-		
-			buildingLayer.setMBR(MBR);
-			roadLayer.setMBR(MBR);			
-			networkLayer.setMBR(MBR);
-			networkEdgeLayer.setMBR(MBR);
-			majorRoadNodesLayer.setMBR(MBR);
-			deliveryLocationLayer.setMBR(MBR);
-			agentLayer.setMBR(MBR);
-			parkingLayer.setMBR(MBR);
-
 			
-			System.out.println("done");
+			// standardize the MBRs so that the visualization lines up
+			
+			/*heatmap = new GeomGridField();
+			heatmap.setMBR(MBR);
+			heatmap.setGrid(new IntGrid2D((int)(MBR.getWidth() / 100), (int)(MBR.getHeight() / 100), 0));
+*/
+			
 
 			
 			//////////////////////////////////////////////
@@ -255,23 +260,23 @@ public class SimpleDrivers extends SimState {
 			//////////////////////////////////////////////
 
 			// first calculate the area within which to distribute parcels
-			Geometry parkingArea = null;
+/*			Geometry parkingArea = null;
 			for(Object o: parkingLayer.getGeometries()){
 				MasonGeometry mg = (MasonGeometry) o;
 				if(parkingArea == null) parkingArea = (Geometry) mg.geometry.clone();
 				else parkingArea = mg.geometry.union(parkingArea);
 			}
 			parkingArea = parkingArea.convexHull();
-
+*/
 			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
-				//generateRandomParcels(d);
-				generateRandomParcelsInArea(d, parkingArea);
+				generateRandomParcels(d);
+				//generateRandomParcelsInArea(d, parkingArea);
 				d.generateRounds();
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 10));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 1));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
@@ -281,6 +286,18 @@ public class SimpleDrivers extends SimState {
 			// seed the simulation randomly
 			seedRandom(System.currentTimeMillis());
 
+
+//			MBR.init(530500, 534500, 180000, 183000);
+			MBR.init(530000, 534500, 179500, 182500);
+			
+			buildingLayer.setMBR(MBR);
+			roadLayer.setMBR(MBR);			
+			networkLayer.setMBR(MBR);
+			networkEdgeLayer.setMBR(MBR);
+			majorRoadNodesLayer.setMBR(MBR);
+			deliveryLocationLayer.setMBR(MBR);
+			agentLayer.setMBR(MBR);
+			parkingLayer.setMBR(MBR);
 		} catch (Exception e) { e.printStackTrace();}
     }
 	
@@ -291,6 +308,8 @@ public class SimpleDrivers extends SimState {
 			int numbays = mg.getIntegerAttribute("loadbays");
 			GeoNode gn = snapPointToNode(mg.geometry.getCoordinate());
 			
+			if(gn == null)
+				continue;
 			Depot d = new Depot(gn.geometry.getCoordinate(), numbays, this);
 			d.setNode(gn);
 

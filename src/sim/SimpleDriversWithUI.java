@@ -40,7 +40,7 @@ public class SimpleDriversWithUI extends GUIState {
 	}
 	
 	public SimpleDriversWithUI(){
-		super(new SimpleDrivers(System.currentTimeMillis()));
+		super(new SimpleDrivers(1234));//System.currentTimeMillis()));
 	}
 	
 	/** Begins the simulation */

@@ -106,16 +106,23 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 				world.schedule.scheduleOnce(time + world.deliveryTime, this);
 				currentDelivery = null;
+				path = null;
 
 				return;
 			}
 
+			else if (inVehicle == false){
+				walkTo(currentDelivery.deliveryLocation, world.resolution);
+				world.schedule.scheduleOnce(this);
+				return;
+			}
+			
 			// get out of the car!!
 			else {
 				roundWalkDistance += 2 * getLocation().distance(currentDelivery.deliveryLocation);
 				inVehicle = false;
 				myVehicle.setStationary();
-				this.walkTo(currentDelivery.deliveryLocation, world.resolution);
+				walkTo(currentDelivery.deliveryLocation, world.resolution);
 				world.schedule.scheduleOnce(this);
 				return;
 			}
@@ -296,12 +303,37 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		return -1;		
 	}
 	
+	static double thetaFromDotProd(double ax, double ay, double bx, double by){
+		double ah = Math.sqrt(ax * ax + ay * ay), bh = Math.sqrt(bx * bx + by * by);
+		return (ax * bx + ay * by) / (ah * bh);
+	}
+	
+	/*protected static double bearing(double lat1, double lon1, double lat2, double lon2){
+		double longDiff= lon2-lon1;
+		double y = Math.sin(longDiff)*Math.cos(lat2);
+		double x = Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(longDiff);
+
+		return Math.toDegrees((Math.atan2(y, x))+360)%360;
+	}*/
+	
 	public int walkTo(Coordinate c, double resolution){
 		Coordinate myLoc = geometry.getCoordinate();
 		double dx = c.x - myLoc.x, dy = c.y - myLoc.y;
-		double normalisationFactor = Math.sqrt(dx * dx + dy * dy);
-		double moveFactor = world.speed_pedestrian / normalisationFactor;
-		Coordinate newLoc = new Coordinate(myLoc.x + moveFactor * dx, myLoc.y + moveFactor * dy);
+
+		//double theta = Math.acos(thetaFromDotProd(myLoc.x, myLoc.y, c.x, c.y));
+
+		double theta = Math.atan2(dy, dx);
+		
+		double hypot = Math.sqrt(dx * dx + dy * dy);
+		double moveFactor = Math.min(hypot, world.speed_pedestrian);
+		
+		
+		//double moveFactor = world.speed_pedestrian / hypot;
+		//Coordinate newLoc = new Coordinate(myLoc.x + moveFactor * dx, myLoc.y + moveFactor * dy);
+		
+		double cosFriend = moveFactor * Math.cos(theta), sinFriend = moveFactor * Math.sin(theta);
+		
+		Coordinate newLoc = new Coordinate(myLoc.x + cosFriend, myLoc.y + sinFriend);
 		updateLoc(newLoc);
 		return 1;
 	}
