@@ -125,10 +125,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 	}
 	
 	ArrayList <Parcel> getNextRound(){
-		if(rounds.size() > 0)
-			return rounds.remove(0);
-		else
-			return null;
+		return rounds.remove(0);
 	}
 	
 	void enterBay(Driver d){
@@ -142,8 +139,6 @@ public class Depot extends SpatialAgent implements Burdenable {
 				@Override
 				public void step(SimState state) {
 					ArrayList <Parcel> newRound = getNextRound();
-					if(newRound == null) 
-						return; // TODO thing is done
 					if(d.myVehicle != null){
 						transferTo(newRound, d.myVehicle);	
 						d.updateRound();

@@ -1,6 +1,7 @@
 package objects;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 import sim.SimpleDrivers;
 import sim.engine.SimState;
@@ -12,6 +13,7 @@ import sim.util.geo.MasonGeometry;
 import swise.agents.TrafficAgent;
 import swise.objects.network.GeoNode;
 import swise.objects.network.ListEdge;
+import utilities.DriverUtilities.driverStates;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -40,6 +42,44 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	Parcel currentDelivery = null;
 	Vehicle myVehicle = null;
 	boolean inVehicle = false;
+	
+	/* 
+	 * OUTPUT AND LOGGING VARS
+	 * Secondary variables, for capturing and communicating information out of the model
+	 * Not to be used for operational processes
+	 */
+	
+	//TODO verify that currentDriverState is being set correctly at all times, it is good enough for now
+	driverStates currentDriverState = driverStates.DEFAULT;
+	
+	ArrayList <String> roundStats = new ArrayList <String> ();
+	
+	double timeSpentDriving = 0;
+	double timeSpentWalking = 0;
+	double timeSpentVehicleParked = 0;
+	double timeSpentDrivingStem = 0;
+	double distanceDriven = 0;
+	double distanceWalked = 0;
+	double distanceDrivenStem = 0;
+	UUID agentUID;
+	String shortID = "";
+	
+	int roundParcelsCount = 0;
+	Parcel firstDeliveryInRound; // For logging purposes, to identify stem mileage
+	Coordinate coordinateAtPreviousStep;
+	
+	ArrayList <String> waypointsTrace = new ArrayList <String> ();
+	int waypointTraceInterval = 10;
+	
+	int roundIndex = 0;
+	double timeSinceRoundStarted = 0;
+	
+	/*
+	 * END OUTPUT AND LOGGING VARS
+	 */
+	
+	public String toString() { return "[ " + shortID + " | " + currentDriverState.toString() + " ]"; }
+	
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -70,6 +110,29 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		currentIndex = segment.indexOf(c);
 		
 		this.isMovable = true;
+		
+		timeSpentDriving = 0;
+		timeSpentWalking = 0;
+		coordinateAtPreviousStep = (Coordinate) getLocation().clone();
+		
+		agentUID = UUID.randomUUID();
+		shortID = agentUID.toString().substring(0, 8);
+		shortID = "D-" + shortID;
+		
+		Steppable steppableWaypointLogger = new Steppable(){
+			public void step(SimState state) {
+				LogWaypoint();
+			}
+		};
+		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppableWaypointLogger, waypointTraceInterval);
+		
+		Steppable steppableRoundStatsUpdate = new Steppable(){
+			public void step(SimState state) {
+				UpdateRoundStats();
+				coordinateAtPreviousStep = (Coordinate) getLocation().clone();
+			}
+		};
+		world.schedule.scheduleRepeating(world.schedule.EPOCH, 4, steppableRoundStatsUpdate);
 	}
 	
 	public void startRoundClock(){
@@ -82,14 +145,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	@Override
 	public void step(SimState arg0) {
 		
-		
 		double time = world.schedule.getTime(); // find the current time
+		
+		if(inVehicle) {
+			UpdateVehiclePosition();
+		}
 
 		// if you're in the process of delivering it, proceed
 		if (currentDelivery != null && path != null && path.size() == 0) {
 			
 			// if you've arrived at the delivery point, try to deliver the parcel!
 			if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
+				currentDriverState = driverStates.DELIVERING;
 
 				// attempt delivery
 				if (world.random.nextDouble() < world.probFailedDelivery) { // failed delivery ):
@@ -114,6 +181,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			else if (inVehicle == false){
 				walkTo(currentDelivery.deliveryLocation, world.resolution);
 				world.schedule.scheduleOnce(this);
+				
+				currentDriverState = driverStates.WALKING_TO_DELIVERY;
 				return;
 			}
 			
@@ -124,16 +193,19 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 				myVehicle.setStationary();
 				walkTo(currentDelivery.deliveryLocation, world.resolution);
 				world.schedule.scheduleOnce(this);
+				
+				currentDriverState = driverStates.WALKING_TO_DELIVERY;
 				return;
 			}
 		}
 		
 		// if you've just finished the delivery, go back to the vehicle
 		else if (inVehicle == false) {
-			
 			// either walk toward it or get in it!
 			if (geometry.getCoordinate().distance(myVehicle.getLocation()) > world.resolution) {
 				this.walkTo(myVehicle.getLocation(), world.resolution);
+				
+				currentDriverState = driverStates.WALKING_TO_VEHICLE;
 			}
 
 			// get in the vehicle!
@@ -141,6 +213,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 				path = null;
 				inVehicle = true;
 				myVehicle.setDriver(this);
+				currentDriverState = driverStates.DRIVING;
 			}
 
 			world.schedule.scheduleOnce(this);
@@ -151,6 +224,16 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		else if(path != null){
 			navigate(world.resolution);
 			world.schedule.scheduleOnce(this);
+			
+			if(targetDestination.equals2D(homeBase)) {
+				currentDriverState = driverStates.DRIVING_TO_DEPOT;
+			}
+			else if(currentDelivery.equals(firstDeliveryInRound)) {
+				currentDriverState = driverStates.DRIVING_FROM_DEPOT;				
+			}
+			else {
+				currentDriverState = driverStates.DRIVING;
+			}
 			return;
 		}
 		
@@ -162,6 +245,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			headFor(nextParcel.deliveryLocation);
 			roundDriveDistance += calculateDistance(path);
 			world.schedule.scheduleOnce(this);
+			
+			currentDriverState = driverStates.DRIVING;
 			return;
 		}
 		
@@ -173,6 +258,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			headFor(nextParcel.deliveryLocation);
 			roundDriveDistance += calculateDistance(path);
 			world.schedule.scheduleOnce(this);
+			
+			currentDriverState = driverStates.DRIVING;
 			return;
 		}
 		
@@ -181,15 +268,19 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		else if(homeBase.distance(geometry.getCoordinate()) > world.resolution){
 			headFor(homeBase);
 			world.schedule.scheduleOnce(this);
+			currentDriverState = driverStates.DRIVING_TO_DEPOT;
 			return;
 		}
 		
 		//  otherwise, you're at the Depot - enter it
 		else {
-			
+			currentDriverState = driverStates.LOADING;
 			double roundTime = world.schedule.getTime() - roundStartTime;
 			history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
 			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
+			
+			RecordCurrentRoundStats();
+			
 			Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
 			if(b.size() > 0){
 				Depot d = (Depot) b.get(0);
@@ -201,7 +292,13 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 						myVehicle.transferTo(myVehicle.parcels, d);
 				}
 			}
-		}		
+			
+			ResetRoundStats();
+		}
+	}
+	
+	void UpdateVehiclePosition() {
+		myVehicle.setLocation(this.geometry.getCoordinate());
 	}
 
 	@Override
@@ -249,6 +346,12 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			tempParcels.add(i, closestParcel);
 		}
 		myRound = tempParcels;
+		
+		roundParcelsCount = myRound.size();
+		firstDeliveryInRound = myRound.get(0);
+		System.out.println(toString() + String.format(" GOT %d NEW PARCELS, NEXT ONE IS AT %s",
+														myRound.size(),
+														firstDeliveryInRound));
 	}
 	
 	@Override
@@ -626,5 +729,104 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		inVehicle = true;
 	}
 	
+	public Vehicle getVehicle() {
+		return myVehicle;
+	}
+	
 	public ArrayList <String> getHistory() {return history; }
+	public ArrayList <String> getWaypointsTrace() {return waypointsTrace; }
+	public ArrayList <String> getRoundStats() {return roundStats; }
+	
+	void LogWaypoint() {
+		//row format: ID, TIME, X, Y
+		double t = world.schedule.getTime();
+		Coordinate c = getLocation();
+		
+		String r = shortID + "," + t + "," + c.x + "," + c.y;
+		waypointsTrace.add(r);
+	}
+	
+	void UpdateRoundStats() {
+		double distanceFromPreviousStep = getLocation().distance(coordinateAtPreviousStep);
+		switch (currentDriverState) {
+			case DRIVING:
+				timeSpentDriving++;
+				distanceDriven += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case DRIVING_FROM_DEPOT:
+				timeSpentDriving++;
+				timeSpentDrivingStem++;
+				distanceDriven += distanceFromPreviousStep;
+				distanceDrivenStem += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case DRIVING_TO_DEPOT:
+				timeSpentDriving++;
+				timeSpentDrivingStem++;
+				distanceDriven += distanceFromPreviousStep;
+				distanceDrivenStem += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case WALKING:
+				timeSpentWalking++;
+				timeSpentVehicleParked++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case WALKING_TO_DELIVERY:
+				timeSpentWalking++;
+				timeSpentVehicleParked++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case WALKING_TO_VEHICLE:
+				timeSpentWalking++;
+				timeSpentVehicleParked++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case DELIVERING:
+				timeSpentVehicleParked++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case LOADING:
+				
+				break;
+			case DEFAULT:
+				
+				break;
+		default:
+			break;
+		}
+	}
+	
+	void ResetRoundStats() {
+		timeSpentDriving = 0;
+		timeSpentWalking = 0;
+		timeSpentDrivingStem = 0;
+		distanceDriven = 0;
+		distanceWalked = 0;
+		distanceDrivenStem = 0;
+		timeSpentVehicleParked = 0;
+		timeSinceRoundStarted = 0;
+	}
+	
+	void RecordCurrentRoundStats() {
+		/*
+		 * row format:
+		 * roundId, roundSequenceId, roundDuration (s), driveTime (s), walkTime(s), parkTime (s), driveDistance (m), walkDistance (m),
+		 * totalDriverDistance (m), stemDistance (m), stemTime (s), succesfulJobs, unsuccessfulJobs 
+		 */
+		String roundId = shortID + "-" + roundIndex;
+		double totalDistanceCovered = distanceDriven+distanceWalked;
+		int successfulJobs = roundParcelsCount - parcels.size();
+		
+		String r = roundId+","+roundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
+		r += ","+distanceDriven+","+distanceWalked+","+totalDistanceCovered+","+distanceDrivenStem+","+timeSpentDrivingStem;
+		r += ","+successfulJobs+","+parcels.size();
+		roundStats.add(r);
+		
+	}
 }

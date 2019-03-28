@@ -74,7 +74,7 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 2;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
-	public static double speed_pedestrian = 7;
+	public static double speed_pedestrian = 1.4;//7
 	public static double speed_vehicle = 10;
 
 	public static int loadingTime = 20;
@@ -99,6 +99,8 @@ public class SimpleDrivers extends SimState {
 	public GeomVectorField deliveryLocationLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField agentLayer = new GeomVectorField(grid_width, grid_height);
 	public GeomVectorField parkingLayer = new GeomVectorField(grid_width, grid_height);
+	
+	public GeomVectorField vehiclesLayer = new GeomVectorField(grid_width, grid_height);
 	
 	
 	
@@ -176,6 +178,8 @@ public class SimpleDrivers extends SimState {
 			deliveryLocationLayer.setMBR(MBR);
 			agentLayer.setMBR(MBR);
 			parkingLayer.setMBR(MBR);
+			
+			vehiclesLayer.setMBR(MBR);
 			
 			System.out.println("done");
 
@@ -281,6 +285,8 @@ public class SimpleDrivers extends SimState {
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
 				p.assignVehicle(v);
+				
+				vehiclesLayer.addGeometry(v);
 			}
 
 			// seed the simulation randomly
@@ -298,6 +304,8 @@ public class SimpleDrivers extends SimState {
 			deliveryLocationLayer.setMBR(MBR);
 			agentLayer.setMBR(MBR);
 			parkingLayer.setMBR(MBR);
+			
+			vehiclesLayer.setMBR(MBR);
 		} catch (Exception e) { e.printStackTrace();}
     }
 	
@@ -451,12 +459,34 @@ public class SimpleDrivers extends SimState {
 		super.finish();
 		try{
 			
-			// save the history
+			// save the model stats
 			BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
+			BufferedWriter outputRounds = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_rounds.txt"));
 			
 			for(Driver a: agents){
 				for(String s: a.getHistory())
-				output.write(s + "\n");
+					output.write(s + "\n");
+				
+				for(String s: a.getRoundStats()) {
+					System.out.println(s);
+					outputRounds.write(s + "\n");
+					
+				}
+			}
+			output.close();
+			outputRounds.close();
+			
+			output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
+			
+			for(Driver a: agents){
+				for(String s: a.getWaypointsTrace())
+					output.write(s + "\n");
+				
+				Vehicle v = a.getVehicle();
+				if(v != null) {
+					for(String s: v.getWaypointsTrace())
+						output.write(s + "\n");
+				}
 			}
 			output.close();
 

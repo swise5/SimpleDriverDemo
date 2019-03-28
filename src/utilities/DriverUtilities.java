@@ -27,6 +27,18 @@ import swise.objects.PopSynth;
 
 public class DriverUtilities {
 	
+	public enum driverStates {
+		DEFAULT,
+		DRIVING,
+		WALKING,
+		LOADING,
+		DRIVING_FROM_DEPOT,
+		DRIVING_TO_DEPOT,
+		WALKING_TO_DELIVERY,
+		WALKING_TO_VEHICLE,
+		DELIVERING
+	}	
+	
 	public static synchronized ArrayList<Driver> setupDriversAtRandom(GeomVectorField buildings, SimpleDrivers world, 
 			GeometryFactory fa, int numDrivers){
 		

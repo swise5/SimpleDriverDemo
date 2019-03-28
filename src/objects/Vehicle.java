@@ -1,21 +1,59 @@
 package objects;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 import com.vividsolutions.jts.geom.Coordinate;
 
+import sim.SimpleDrivers;
+import sim.engine.SimState;
+import sim.engine.Steppable;
 import sim.util.geo.MasonGeometry;
+import sim.util.gui.WordWrap;
 import swise.agents.MobileAgent;
 
 public class Vehicle extends MobileAgent implements Burdenable {
-
+	
+	SimpleDrivers world;
+	
 	Driver owner;
 	ArrayList <Parcel> parcels = new ArrayList <Parcel> ();
+	
+	
+	/* 
+	 * OUTPUT AND LOGGING VARS
+	 * Secondary variables, for capturing and communicating information out of the model
+	 * Not to be used for operational processes
+	 */
+	
+	UUID vehicleUID;
+	String shortID = "";
+	ArrayList <String> waypointsTrace = new ArrayList <String> ();
+	int waypointTraceInterval = 10;
+	
+	/*
+	 * END OUTPUT AND LOGGING VARS
+	 */
 	
 	public Vehicle(Coordinate c, Driver d){
 		super((Coordinate)c.clone());
 		isMovable = true;
 		owner = d;
+		this.world = owner.world;
+		
+		vehicleUID = UUID.randomUUID();
+		shortID = vehicleUID.toString().substring(0, 8);
+		shortID = "V-" + shortID;
+		
+		Steppable steppable = new Steppable(){
+			
+			public void step(SimState state) {
+				LogWaypoint();
+			}
+		};
+		
+		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppable, waypointTraceInterval);
+
 	}
 	
 	@Override
@@ -41,6 +79,10 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	@Override
 	public Coordinate getLocation() {
 		return geometry.getCoordinate();
+	}
+	
+	public void setLocation(Coordinate newC) {
+		updateLoc(newC);
 	}
 
 	@Override
@@ -73,4 +115,15 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	void setDriver(Driver d){
 		this.owner = d;
 	}
+	
+	void LogWaypoint() {
+		//row format: ID, TIME, X, Y
+		double t = world.schedule.getTime();
+		Coordinate c = getLocation();
+		String r = shortID + "," + t + "," + c.x + "," + c.y;
+//		System.out.println(r);
+		waypointsTrace.add(r);
+	}
+	
+	public ArrayList <String> getWaypointsTrace() {return waypointsTrace; }
 }

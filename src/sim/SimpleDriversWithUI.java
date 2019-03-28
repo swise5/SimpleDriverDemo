@@ -10,11 +10,16 @@ import sim.display.Controller;
 import sim.display.Display2D;
 import sim.display.GUIState;
 import sim.engine.SimState;
+import sim.portrayal.SimplePortrayal2D;
 import sim.portrayal.geo.GeomPortrayal;
 import sim.portrayal.geo.GeomVectorFieldPortrayal;
 import sim.portrayal.grid.ObjectGridPortrayal2D;
 import sim.portrayal.grid.SparseGridPortrayal2D;
+import sim.portrayal.simple.CircledPortrayal2D;
+import sim.portrayal.simple.LabelledPortrayal2D;
 import sim.portrayal.simple.OvalPortrayal2D;
+import sim.portrayal3d.SimplePortrayal3D;
+import sim.portrayal3d.simple.LabelledPortrayal3D;
 import sim.util.gui.ColorMap;
 import sim.util.gui.SimpleColorMap;
 import swise.visualization.AttributePolyPortrayal;
@@ -27,6 +32,8 @@ public class SimpleDriversWithUI extends GUIState {
 	private GeomVectorFieldPortrayal drivers = new GeomVectorFieldPortrayal();
 	private GeomVectorFieldPortrayal deliveryLocations = new GeomVectorFieldPortrayal();
 	private GeomVectorFieldPortrayal parkingLocations = new GeomVectorFieldPortrayal();
+	
+	private GeomVectorFieldPortrayal vehicles = new GeomVectorFieldPortrayal();
 
 	
 	//SparseGridPortrayal2D driversPortrayal = new SparseGridPortrayal2D ();
@@ -81,15 +88,23 @@ public class SimpleDriversWithUI extends GUIState {
 		SegmentedColorMap scm = new SegmentedColorMap(levels, colors);
 		deliveryLocations.setPortrayalForAll(new AttributePolyPortrayal(
 				scm,//new SimpleColorMap(0,100, Color.red, Color.green), 
-				"round", new Color(0,0,0,0), true, 20));
+				"round", new Color(0,0,0,0), true, 10));
 		//agents.setImmutableField(true);
 		
 		parkingLocations.setField(world.parkingLayer);
-		parkingLocations.setPortrayalForAll(new GeomPortrayal(new Color(200,200,200,100), 30, true));
+		parkingLocations.setPortrayalForAll(new GeomPortrayal(new Color(50,200,50,200), 30, true));
 		parkingLocations.setImmutableField(true);
 		
 		drivers.setField(world.agentLayer);
-		drivers.setPortrayalForAll(new GeomPortrayal(new Color(255,150,150), 20));
+//		drivers.setPortrayalForAll(new GeomPortrayal(new Color(255,150,150), 20));
+		drivers.setPortrayalForAll(new CircledPortrayal2D(
+				new LabelledPortrayal2D(
+						new OvalPortrayal2D(
+								new Color(255,150,150), 5),
+						null, Color.white, false)));
+		
+		vehicles.setField(world.vehiclesLayer);
+		vehicles.setPortrayalForAll(new GeomPortrayal(new Color(150,150,255), 15));
 		
 		display.reset();
 		display.setBackdrop(new Color(10,10,10));
@@ -107,6 +122,9 @@ public class SimpleDriversWithUI extends GUIState {
 		display.attach(buildings, "Buildings");
 		display.attach(roads, "Roads");
 		display.attach(parkingLocations, "Parking");
+		
+		display.attach(vehicles, "Vehicles");
+		
 		display.attach(deliveryLocations, "Delivery Locations");
 		display.attach(drivers, "Drivers");
 		
