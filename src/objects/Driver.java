@@ -49,11 +49,12 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	 * Not to be used for operational processes
 	 */
 	
-	//TODO verify that currentDriverState is being set correctly at all times, it is good enough for now
+	//TODO verify that currentDriverState is being set correctly at all times. ATM it is good enough, but might break at any moment
 	driverStates currentDriverState = driverStates.DEFAULT;
 	
 	ArrayList <String> roundStats = new ArrayList <String> ();
 	
+	//logging vars
 	double timeSpentDriving = 0;
 	double timeSpentWalking = 0;
 	double timeSpentVehicleParked = 0;
@@ -61,24 +62,25 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	double distanceDriven = 0;
 	double distanceWalked = 0;
 	double distanceDrivenStem = 0;
-	UUID agentUID;
-	String shortID = "";
 	
-	int roundParcelsCount = 0;
+	UUID agentUID; //agent unique ID
+	String shortID = ""; //shorter id, not guaranteed to be unique
+	
+	int roundParcelsCount = 0; //number of parcels in the round
 	Parcel firstDeliveryInRound; // For logging purposes, to identify stem mileage
 	Coordinate coordinateAtPreviousStep;
 	
 	ArrayList <String> waypointsTrace = new ArrayList <String> ();
-	int waypointTraceInterval = 10;
+	int waypointTraceInterval = 10; //update interval for logging the current waypoint, similar to GPS polling rate
 	
-	int roundIndex = 0;
+	int roundIndex = 0; // which round we are currently in, in case of multiple rounds per driver
 	double timeSinceRoundStarted = 0;
 	
 	/*
 	 * END OUTPUT AND LOGGING VARS
 	 */
 	
-	public String toString() { return "[ " + shortID + " | " + currentDriverState.toString() + " ]"; }
+	public String toString() { return "[ " + shortID + " | " + currentDriverState.toString() + " ]"; } // returns driver ID and its currente state
 	
 	
 	public Driver(SimpleDrivers world, Coordinate c){
@@ -119,6 +121,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		shortID = agentUID.toString().substring(0, 8);
 		shortID = "D-" + shortID;
 		
+		//scheduling of path recording, polling rate can be modified
 		Steppable steppableWaypointLogger = new Steppable(){
 			public void step(SimState state) {
 				LogWaypoint();
@@ -126,6 +129,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		};
 		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppableWaypointLogger, waypointTraceInterval);
 		
+		//scheduling of round stats recording, happens EVERY tick
 		Steppable steppableRoundStatsUpdate = new Steppable(){
 			public void step(SimState state) {
 				UpdateRoundStats();
@@ -147,6 +151,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		double time = world.schedule.getTime(); // find the current time
 		
+		//this bit would be better at the end of the agent update function, I think
 		if(inVehicle) {
 			UpdateVehiclePosition();
 		}
@@ -349,9 +354,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		roundParcelsCount = myRound.size();
 		firstDeliveryInRound = myRound.get(0);
-		System.out.println(toString() + String.format(" GOT %d NEW PARCELS, NEXT ONE IS AT %s",
-														myRound.size(),
-														firstDeliveryInRound));
 	}
 	
 	@Override
@@ -746,6 +748,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		waypointsTrace.add(r);
 	}
 	
+	//this one should run every frame, as it is capturing times and distances
 	void UpdateRoundStats() {
 		double distanceFromPreviousStep = getLocation().distance(coordinateAtPreviousStep);
 		switch (currentDriverState) {
@@ -816,14 +819,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	void RecordCurrentRoundStats() {
 		/*
 		 * row format:
-		 * roundId, roundSequenceId, roundDuration (s), driveTime (s), walkTime(s), parkTime (s), driveDistance (m), walkDistance (m),
+		 * roundId, driverId, roundSequenceId, roundDuration (s), driveTime (s), walkTime (s), parkTime (s), driveDistance (m), walkDistance (m),
 		 * totalDriverDistance (m), stemDistance (m), stemTime (s), succesfulJobs, unsuccessfulJobs 
 		 */
 		String roundId = shortID + "-" + roundIndex;
 		double totalDistanceCovered = distanceDriven+distanceWalked;
 		int successfulJobs = roundParcelsCount - parcels.size();
 		
-		String r = roundId+","+roundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
+		String r = roundId+","+shortID+","+roundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
 		r += ","+distanceDriven+","+distanceWalked+","+totalDistanceCovered+","+distanceDrivenStem+","+timeSpentDrivingStem;
 		r += ","+successfulJobs+","+parcels.size();
 		roundStats.add(r);

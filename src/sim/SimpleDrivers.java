@@ -462,6 +462,7 @@ public class SimpleDrivers extends SimState {
 			// save the model stats
 			BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
 			BufferedWriter outputRounds = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_rounds.txt"));
+			BufferedWriter outputWaypoints = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
 			
 			for(Driver a: agents){
 				for(String s: a.getHistory())
@@ -472,23 +473,19 @@ public class SimpleDrivers extends SimState {
 					outputRounds.write(s + "\n");
 					
 				}
-			}
-			output.close();
-			outputRounds.close();
-			
-			output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
-			
-			for(Driver a: agents){
+				
 				for(String s: a.getWaypointsTrace())
-					output.write(s + "\n");
+					outputWaypoints.write(s + "\n");
 				
 				Vehicle v = a.getVehicle();
 				if(v != null) {
 					for(String s: v.getWaypointsTrace())
-						output.write(s + "\n");
+						outputWaypoints.write(s + "\n");
 				}
 			}
 			output.close();
+			outputRounds.close();
+			outputWaypoints.close();
 
 		} catch (IOException e){
 			e.printStackTrace();

@@ -45,15 +45,14 @@ public class Vehicle extends MobileAgent implements Burdenable {
 		shortID = vehicleUID.toString().substring(0, 8);
 		shortID = "V-" + shortID;
 		
+		//scheduling of path recording, polling rate can be modified
 		Steppable steppable = new Steppable(){
 			
 			public void step(SimState state) {
 				LogWaypoint();
 			}
 		};
-		
 		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppable, waypointTraceInterval);
-
 	}
 	
 	@Override
