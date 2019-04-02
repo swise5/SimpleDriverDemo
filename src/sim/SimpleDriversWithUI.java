@@ -50,6 +50,8 @@ public class SimpleDriversWithUI extends GUIState {
 		super(new SimpleDrivers(1234));//System.currentTimeMillis()));
 	}
 	
+	public Object getSimulationInspectedObject() { return state; }
+	
 	/** Begins the simulation */
 	public void start() {
 		super.start();

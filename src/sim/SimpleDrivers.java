@@ -84,6 +84,9 @@ public class SimpleDrivers extends SimState {
 	public static int numParcels = 100;
 	public static double probFailedDelivery = .126;
 	
+	public boolean writeModelStatsToFile = true;
+	public boolean writeFullModelStats = false;
+	
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
@@ -128,10 +131,30 @@ public class SimpleDrivers extends SimState {
 	boolean verbose = false;
 	
 	/////////////// END Objects //////////////////////////////////////////
+	
+	///////////////////////////////////////////////////////////////////////////
+	/////////////////////////// MODEL INSPECTOR ///////////////////////////////
+	///////////////////////////////////////////////////////////////////////////	
+	
+	public boolean getWriteModelStatsToFile() {
+		return writeModelStatsToFile;
+	}
+	
+	public void setWriteModelStatsToFile(boolean v) {
+		writeModelStatsToFile = v;
+	}
+	
+	public boolean getWriteFullModelStats() {
+		return writeFullModelStats;
+	}
+	
+	public void setWriteFullModelStats(boolean v) {
+		writeFullModelStats = v;
+	}
 
 	///////////////////////////////////////////////////////////////////////////
 	/////////////////////////// BEGIN functions ///////////////////////////////
-	///////////////////////////////////////////////////////////////////////////	
+	///////////////////////////////////////////////////////////////////////////
 	
 	/**
 	 * Default constructor function
@@ -458,34 +481,39 @@ public class SimpleDrivers extends SimState {
 	public void finish(){
 		super.finish();
 		try{
-			
-			// save the model stats
-			BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
-			BufferedWriter outputRounds = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_rounds.txt"));
-			BufferedWriter outputWaypoints = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
-			
-			for(Driver a: agents){
-				for(String s: a.getHistory())
-					output.write(s + "\n");
+			if(writeModelStatsToFile) {
+				// save the model stats
+				BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
+				BufferedWriter outputRounds = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_rounds.txt"));
 				
-				for(String s: a.getRoundStats()) {
-					System.out.println(s);
-					outputRounds.write(s + "\n");
+				for(Driver a: agents){
+					for(String s: a.getHistory())
+						output.write(s + "\n");
 					
+					for(String s: a.getRoundStats()) {
+						System.out.println(s);
+						outputRounds.write(s + "\n");	
+					}
 				}
+				output.close();
+				outputRounds.close();
 				
-				for(String s: a.getWaypointsTrace())
-					outputWaypoints.write(s + "\n");
-				
-				Vehicle v = a.getVehicle();
-				if(v != null) {
-					for(String s: v.getWaypointsTrace())
-						outputWaypoints.write(s + "\n");
+				if(writeFullModelStats) {
+					BufferedWriter outputWaypoints = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
+					
+					for(Driver a: agents){
+						for(String s: a.getWaypointsTrace())
+							outputWaypoints.write(s + "\n");
+						
+						Vehicle v = a.getVehicle();
+						if(v != null) {
+							for(String s: v.getWaypointsTrace())
+								outputWaypoints.write(s + "\n");
+						}
+					}
+					outputWaypoints.close();
 				}
 			}
-			output.close();
-			outputRounds.close();
-			outputWaypoints.close();
 
 		} catch (IOException e){
 			e.printStackTrace();
