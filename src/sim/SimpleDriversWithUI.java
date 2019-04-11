@@ -27,7 +27,7 @@ public class SimpleDriversWithUI extends GUIState {
 	private GeomVectorFieldPortrayal drivers = new GeomVectorFieldPortrayal();
 	private GeomVectorFieldPortrayal deliveryLocations = new GeomVectorFieldPortrayal();
 	private GeomVectorFieldPortrayal parkingLocations = new GeomVectorFieldPortrayal();
-
+	private GeomVectorFieldPortrayal parkingCatchmentLocations = new GeomVectorFieldPortrayal();
 	
 	//SparseGridPortrayal2D driversPortrayal = new SparseGridPortrayal2D ();
 	public Display2D display;
@@ -88,6 +88,10 @@ public class SimpleDriversWithUI extends GUIState {
 		parkingLocations.setPortrayalForAll(new GeomPortrayal(new Color(200,200,200,100), 30, true));
 		parkingLocations.setImmutableField(true);
 		
+		parkingCatchmentLocations.setField(world.parkingCatchmentLayer);
+		parkingCatchmentLocations.setPortrayalForAll(new GeomPortrayal(new Color(250,100,100,50), 50, true));
+		parkingCatchmentLocations.setImmutableField(true);
+		
 		drivers.setField(world.agentLayer);
 		drivers.setPortrayalForAll(new GeomPortrayal(new Color(255,150,150), 20));
 		
@@ -106,6 +110,7 @@ public class SimpleDriversWithUI extends GUIState {
 
 		display.attach(buildings, "Buildings");
 		display.attach(roads, "Roads");
+		display.attach(parkingCatchmentLocations, "Parkingthingy");
 		display.attach(parkingLocations, "Parking");
 		display.attach(deliveryLocations, "Delivery Locations");
 		display.attach(drivers, "Drivers");

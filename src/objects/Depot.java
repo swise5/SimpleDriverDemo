@@ -64,12 +64,16 @@ public class Depot extends SpatialAgent implements Burdenable {
 	public boolean transferTo(Object o, Burdenable b) {
 		try{
 			if(o instanceof ArrayList){
-				parcels.removeAll((ArrayList <Parcel>) o);
-				b.addParcels((ArrayList <Parcel>) o);
+				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
+				parcels.removeAll(ps);
+				b.addParcels(ps);
+				for(Parcel p: ps)
+					p.transfer(this, b);
 			}
 			else {
 				parcels.remove((Parcel) o);
 				b.addParcel((Parcel) o);
+				((Parcel) o).transfer(this, b);
 			}
 			return true;
 		} catch (Exception e){
@@ -146,7 +150,6 @@ public class Depot extends SpatialAgent implements Burdenable {
 						return; // TODO thing is done
 					if(d.myVehicle != null){
 						transferTo(newRound, d.myVehicle);	
-						d.updateRound();
 					}
 					else
 						d.addParcels(newRound);
@@ -154,6 +157,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 					System.out.println(d.toString() + " has taken on a new load: " + newRound.toArray().toString());
 					leaveDepot(d);
 					d.startRoundClock();
+					d.updateRoundClustered();
 				}
 			
 			});

@@ -3,6 +3,7 @@ package objects;
 import java.util.ArrayList;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
 
 import sim.SimpleDrivers;
 import swise.agents.MobileAgent;
@@ -38,6 +39,7 @@ public class Parcel extends MobileAgent {
 		try {
 			from.removeParcel(this);
 			to.addParcel(this);
+			carryingUnit = to;
 			return true;			
 		} catch (Exception e){
 			e.printStackTrace();
@@ -45,12 +47,14 @@ public class Parcel extends MobileAgent {
 		}
 	}
 	
-	public boolean deliver(){
-		if(getLocation().distance(deliveryLocation) < SimpleDrivers.resolution){
+	public boolean deliver(Geometry targetGeo){
+		if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
 			// TODO make it move away!!
+			this.geometry = targetGeo;
 			carryingUnit.removeParcel(this);
+			carryingUnit = null;
 			status = 3;
-			updateLoc(deliveryLocation);
+			updateLoc(targetGeo.getCoordinate());
 			return true;
 		}
 		status = 1;

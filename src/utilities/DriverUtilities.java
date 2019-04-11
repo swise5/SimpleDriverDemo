@@ -64,7 +64,7 @@ public class DriverUtilities {
 		
 		for(int i = 0; i < numDrivers; i++){
 			
-			Object o = myDepots.get(world.random.nextInt(myDepotsSize));
+			Object o = myDepots.get(i % myDepotsSize);//world.random.nextInt(myDepotsSize));
 			Depot depot = (Depot) o;
 			Coordinate myC = (Coordinate) depot.geometry.getCoordinate().clone();
 			Driver driver = new Driver(world, myC);
