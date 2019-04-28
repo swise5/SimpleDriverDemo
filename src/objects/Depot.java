@@ -17,8 +17,8 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	GeoNode myNode = null;
 	
-	ArrayList <Parcel> parcels;
-	ArrayList <ArrayList <Parcel>> rounds;
+	private ArrayList <Parcel> parcels;
+	private ArrayList <ArrayList <Parcel>> rounds;
 
 	int numBays;
 	ArrayList <Driver> inBays;
@@ -65,14 +65,10 @@ public class Depot extends SpatialAgent implements Burdenable {
 		try{
 			if(o instanceof ArrayList){
 				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
-				parcels.removeAll(ps);
-				b.addParcels(ps);
 				for(Parcel p: ps)
 					p.transfer(this, b);
 			}
 			else {
-				parcels.remove((Parcel) o);
-				b.addParcel((Parcel) o);
 				((Parcel) o).transfer(this, b);
 			}
 			return true;
@@ -154,7 +150,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 					else
 						d.addParcels(newRound);
 					
-					System.out.println(d.toString() + " has taken on a new load: " + newRound.toArray().toString());
+					System.out.println(d.toString() + " has taken on a new load: " + newRound.size());
 					leaveDepot(d);
 					d.startRoundClock();
 					d.updateRoundClustered();

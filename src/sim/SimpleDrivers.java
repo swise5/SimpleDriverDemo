@@ -160,7 +160,9 @@ public class SimpleDrivers extends SimState {
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
-			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
+			
+			GeomVectorField rawParkingLayer = new GeomVectorField(grid_width, grid_height);
+			InputCleaning.readInVectorLayer(rawParkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
 						
 			//////////////////////////////////////////////
 			////////////////// CLEANUP ///////////////////
@@ -221,6 +223,26 @@ public class SimpleDrivers extends SimState {
 			//////////////////////////////////////////////
 
 
+			// set up parking info
+			GeometricShapeFactory shapeFactory = new GeometricShapeFactory();
+			shapeFactory.setNumPoints(16);
+			shapeFactory.setSize(parkingRadius);
+			for(Object o: rawParkingLayer.getGeometries()){
+
+				MasonGeometry mg = (MasonGeometry) o;
+
+				// snap parking layer to road network
+				Coordinate c = snapPointToRoadNetwork(mg.geometry.getCoordinate());
+				MasonGeometry newPS = new MasonGeometry(fa.createPoint(c));
+				parkingLayer.addGeometry(newPS);
+
+				// set up the catchments
+				shapeFactory.setCentre(newPS.geometry.getCoordinate());
+				MasonGeometry myParkingArea = new MasonGeometry(shapeFactory.createCircle());
+				myParkingArea.addAttribute("parkingspace", newPS);
+				parkingCatchmentLayer.addGeometry(myParkingArea);
+			}
+
 			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
@@ -236,19 +258,9 @@ public class SimpleDrivers extends SimState {
 				p.assignVehicle(v);
 			}
 
-			GeometricShapeFactory shapeFactory = new GeometricShapeFactory();
-			shapeFactory.setNumPoints(16);
-			shapeFactory.setSize(parkingRadius);
-			for(Object o: parkingLayer.getGeometries()){
-				MasonGeometry mg = (MasonGeometry) o;
-				shapeFactory.setCentre(mg.geometry.getCoordinate());
-				MasonGeometry myParkingArea = new MasonGeometry(shapeFactory.createCircle());
-				myParkingArea.addAttribute("parkingspace", mg.geometry);
-				parkingCatchmentLayer.addGeometry(myParkingArea);
-			}
-			
+
 			// seed the simulation randomly
-			seedRandom(System.currentTimeMillis());
+			//seedRandom(System.currentTimeMillis());
 
 
 			MBR.init(530000, 534500, 179500, 182500);
@@ -364,19 +376,21 @@ public class SimpleDrivers extends SimState {
 			
 			Point deliveryLoc = ((MasonGeometry)buildings.get(random.nextInt(buildings.size()))).geometry.getCentroid();
 			Coordinate myc = deliveryLoc.getCoordinate();
+			Coordinate snappedC = snapPointToRoadNetwork(myc);
 			
 //			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
 //			Coordinate myc = gn.getGeometry().getCoordinate();
 			
-			if(!MBR.contains(myc)){
+//			if(!MBR.contains(myc)){
+			if(!MBR.contains(snappedC)){
 				i--;
 				continue;
 			}
 			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
 					
 			Parcel p = new Parcel(d);
-			p.setDeliveryLocation(new Coordinate(myc.x, myc.y));
-			myParcels.add(p);			
+			p.setDeliveryLocation(new Coordinate(snappedC.x, snappedC.y));
+			myParcels.add(p);
 		}		
 	}
 

@@ -15,6 +15,7 @@ import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.field.network.Edge;
 import sim.util.Bag;
+import sim.util.geo.AttributeValue;
 import sim.util.geo.MasonGeometry;
 import swise.agents.TrafficAgent;
 import swise.objects.network.GeoNode;
@@ -51,6 +52,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	ArrayList <Parcel> miniRound = null;
 	Vehicle myVehicle = null;
 	boolean inVehicle = false;
+	int goodDelivery = 0;
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -101,13 +103,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// successful delivery!
 		else { 
-			System.out.println("mydist: " + geometry.getCoordinate().distance(currentDelivery.deliveryLocation));
 			currentDelivery.deliver(world.fa.createPoint(currentDelivery.deliveryLocation));
-			//this.removeParcel(currentDelivery);
+			this.goodDelivery++;
 			miniRound.remove(miniRoundIndex);
-			removeParcel(currentDelivery);
-			System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
-			//currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
+			//System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
 			world.deliveryLocationLayer.addGeometry(currentDelivery);
 		}
 
@@ -147,6 +146,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	@Override
 	public void step(SimState arg0) {
 		
+		for(Parcel p: parcels){
+			if(p.carryingUnit == null)
+				System.out.println("lolwut " + p.myId);
+		}
 		
 		double time = world.schedule.getTime(); // find the current time
 		
@@ -194,11 +197,17 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 		// otherwise if we've got to the next miniround starting point, transition to doing a miniround!
 		else if(roundIndex < myRound.size() && 
-				myRound.get(roundIndex).geometry.distance(this.geometry) <= world.resolution && 
+				myRound.get(roundIndex).geometry.getCoordinate().distance(this.geometry.getCoordinate()) <= world.resolution && 
 				miniRoundIndex < 0){
 			miniRound = parkingPerRound.get(myRound.get(roundIndex));
 			//myRound.remove(roundIndex); // clean it up - we'll not come here again
 			miniRoundIndex = 0;
+			
+			if(myVehicle != null && miniRound != null){
+				ArrayList <Parcel> dummyParcels = (ArrayList <Parcel>) miniRound.clone();
+				dummyParcels.retainAll(myVehicle.parcels);
+				myVehicle.transferTo(dummyParcels, this);
+			}
 			
 			world.schedule.scheduleOnce(this);
 			return;
@@ -207,6 +216,9 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		// otherwise if you've been trying to get in the vehicle and are close enough, get in
 		else if(miniRound == null && myVehicle != null && !inVehicle &&
 				myVehicle.getLocation().distance(geometry.getCoordinate()) <= world.resolution){
+			
+			transferTo(parcels, myVehicle);
+			
 			enterVehicle();
 			world.schedule.scheduleOnce(this);
 			return;
@@ -256,6 +268,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	void cleanupAtDepot(){
 		
+		System.out.println("FINAL DELIVERD PARCELS: " + this.goodDelivery);
+		
 		// write out the report
 		double roundTime = world.schedule.getTime() - roundStartTime;
 		history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
@@ -266,12 +280,11 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		if(b.size() > 0){
 			Depot d = (Depot) b.get(0);
 			d.enterDepot(this);
-			if(parcels.size() > 0){
-				System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
+			System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
+			if(parcels.size() > 0)
 				transferTo(parcels, d);
-				if(myVehicle != null)
-					myVehicle.transferTo(myVehicle.parcels, d);
-			}
+			if(myVehicle != null)
+				myVehicle.transferTo(myVehicle.parcels, d);
 		}
 		
 		// reset everything
@@ -279,6 +292,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		miniRoundIndex = -1;
 		parkingPerRound = null;
 		myRound = null;
+		this.goodDelivery = 0;
 	}
 	
 	@Override
@@ -357,13 +371,16 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// go through Parcels and allocate parking spaces
 		for(Parcel p: allTempParcels){
+		
+			Coordinate parkingOnRoad = world.snapPointToRoadNetwork(p.getDeliveryLocation());
 			
 			// look for covering parking spaces
-			Bag b = world.parkingCatchmentLayer.getCoveringObjects(world.fa.createPoint(p.getDeliveryLocation()));
+			Bag b = world.parkingCatchmentLayer.getCoveringObjects(world.fa.createPoint(parkingOnRoad));
 			
 			// if there are no nearby parking spaces, we'll plan around the delivery itself
 			if(b.size() == 0){
-				MasonGeometry mg = new MasonGeometry(world.fa.createPoint(p.getDeliveryLocation()));
+				
+				MasonGeometry mg = new MasonGeometry(world.fa.createPoint(parkingOnRoad));				
 				ArrayList <Parcel> ps = new ArrayList <Parcel>();
 				ps.add(p);
 				parkingSpaceOptions.put(mg, ps);
@@ -373,6 +390,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			else{
 				for(Object o: b){
 					MasonGeometry mg = (MasonGeometry) o;
+
 					if(parkingSpaceOptions.containsKey(mg))
 						parkingSpaceOptions.get(mg).add(p);
 					else {
@@ -414,8 +432,12 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 //			for(Parcel p: toDeliver)
 //				allTempParcels.remove(p);
 			allTempParcels.removeAll(toDeliver);
-			myRound.add(nextOne.getKey());
-			parkingPerRound.put(nextOne.getKey(), toDeliver);
+			
+			MasonGeometry parkingSpaceItself = ((MasonGeometry)nextOne.getKey());
+			if(parkingSpaceItself.hasAttribute("parkingspace"))
+				parkingSpaceItself = (MasonGeometry)((AttributeValue)parkingSpaceItself.getAttribute("parkingspace")).getValue();
+			myRound.add(parkingSpaceItself);
+			parkingPerRound.put(parkingSpaceItself, toDeliver);
 		}
 		if(!iter.hasNext() && allTempParcels.size() > 0){
 			System.out.println("but whyyy");
@@ -430,14 +452,13 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		try{
 			if(o instanceof ArrayList){
 				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
-				parcels.removeAll(ps);
-				b.addParcels(ps);
-				for(Parcel p: ps)
+				while(ps.size() > 0){
+					Parcel p = ps.remove(0);
 					p.transfer(this, b);
+				}
+					
 			}
 			else {
-				parcels.remove((Parcel) o);
-				b.addParcel((Parcel) o);
 				((Parcel) o).transfer(this, b);
 			}
 			return true;

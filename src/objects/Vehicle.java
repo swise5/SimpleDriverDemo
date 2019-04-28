@@ -48,14 +48,12 @@ public class Vehicle extends MobileAgent implements Burdenable {
 		try{
 			if(o instanceof ArrayList){
 				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
-				parcels.removeAll(ps);
-				b.addParcels(ps);
-				for(Parcel p: ps)
+				while(ps.size() > 0){
+					Parcel p = ps.remove(0);
 					p.transfer(this, b);
+				}
 			}
 			else {
-				parcels.remove((Parcel) o);
-				b.addParcel((Parcel) o);
 				((Parcel) o).transfer(this, b);
 			}
 			return true;

@@ -10,6 +10,7 @@ import swise.agents.MobileAgent;
 
 public class Parcel extends MobileAgent {
 
+	long myId;
 	Burdenable carryingUnit = null;
 	Coordinate deliveryLocation;
 	double dim_x, dim_y, dim_z, weight;
@@ -22,6 +23,7 @@ public class Parcel extends MobileAgent {
 		history = new ArrayList <String> ();
 		carrier.addParcel(this);
 		isMovable = true;
+		myId = System.nanoTime();
 	}
 	
 	public void setDeliveryLocation(Coordinate c){
@@ -40,6 +42,8 @@ public class Parcel extends MobileAgent {
 			from.removeParcel(this);
 			to.addParcel(this);
 			carryingUnit = to;
+			if(carryingUnit == null)
+				System.out.println("transferred to null");
 			return true;			
 		} catch (Exception e){
 			e.printStackTrace();
@@ -48,12 +52,16 @@ public class Parcel extends MobileAgent {
 	}
 	
 	public boolean deliver(Geometry targetGeo){
-		if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
+		if(carryingUnit == null)
+			System.out.println("uhoh!!");
+		else if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
+			// TODO OMG FIX IT
 			// TODO make it move away!!
 			this.geometry = targetGeo;
 			carryingUnit.removeParcel(this);
 			carryingUnit = null;
 			status = 3;
+			System.out.println("delivered: " + myId);
 			updateLoc(targetGeo.getCoordinate());
 			return true;
 		}
@@ -61,4 +69,10 @@ public class Parcel extends MobileAgent {
 		return false;
 	}
 	
+	public boolean equals(Object o){
+		if(!(o instanceof Parcel))
+			return false;
+		Parcel p = (Parcel) o;
+		return myId == p.myId;
+	}
 }
