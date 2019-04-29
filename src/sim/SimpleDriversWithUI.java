@@ -76,7 +76,8 @@ public class SimpleDriversWithUI extends GUIState {
 		Color [] colors = new Color [100];
 		for(int i = 0; i < 100; i++){
 			levels[i] = i;
-			colors[i] = Color.getHSBColor(world.random.nextFloat(), 1, 1);////new Color(world.random.nextInt(255), world.random.nextInt(255), world.random.nextInt(255), 100);
+			Color mycol = Color.getHSBColor(world.random.nextFloat(), 1, 1);
+			colors[i] = new Color(mycol.getRed(), mycol.getGreen(), mycol.getBlue(), 80);
 		}
 		SegmentedColorMap scm = new SegmentedColorMap(levels, colors);
 		deliveryLocations.setPortrayalForAll(new AttributePolyPortrayal(

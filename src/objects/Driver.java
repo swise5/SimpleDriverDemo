@@ -52,7 +52,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	ArrayList <Parcel> miniRound = null;
 	Vehicle myVehicle = null;
 	boolean inVehicle = false;
-	int goodDelivery = 0;
 	
 	public Driver(SimpleDrivers world, Coordinate c){
 		super(c);
@@ -104,7 +103,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		// successful delivery!
 		else { 
 			currentDelivery.deliver(world.fa.createPoint(currentDelivery.deliveryLocation));
-			this.goodDelivery++;
 			miniRound.remove(miniRoundIndex);
 			//System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
 			world.deliveryLocationLayer.addGeometry(currentDelivery);
@@ -126,6 +124,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		inVehicle = false;
 		myVehicle.setStationary();
+		this.speed = SimpleDrivers.speed_pedestrian;
 	}
 	
 	void enterVehicle(){
@@ -136,6 +135,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		inVehicle = true;
 		myVehicle.setDriver(this);
+		this.speed = SimpleDrivers.speed_vehicle;
 	}
 	
 	void scheduleNextGoal(Coordinate c){
@@ -229,6 +229,15 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// if anything left to deliver on this miniround, deliver it
 		if(miniRound != null && miniRoundIndex < miniRound.size()){
+			
+			// make sure that you're heading to the next closest delivery point
+			int nextClosestDeliveryPoint = nextClosestDelivery(miniRoundIndex);
+			if(nextClosestDeliveryPoint > miniRoundIndex){
+				Parcel p = miniRound.remove(nextClosestDeliveryPoint);
+				miniRound.add(miniRoundIndex, p);
+			}
+			
+			// schedule the next delivery
 			currentDelivery = miniRound.get(miniRoundIndex);
 			scheduleNextGoal(currentDelivery.deliveryLocation);
 			return;
@@ -251,6 +260,15 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// otherwise, is there another organising point to hit up? If so, go to it
 		if(roundIndex < myRound.size()){
+			
+			// make sure you're heading for the next closest spot, rejigging the ordering if necessary
+			int nextClosestRallyPoint = nextClosestParkingSpot(roundIndex);
+			if(nextClosestRallyPoint > roundIndex){
+				MasonGeometry temp = myRound.remove(nextClosestRallyPoint);
+				myRound.add(roundIndex, temp);
+			}
+			
+			// schedule to move on to the next closest parking space
 			scheduleNextGoal(myRound.get(roundIndex).geometry.getCoordinate());
 			return;
 		}
@@ -266,10 +284,41 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	}
 
+	
+	/**
+	 * 
+	 * @param startIndex - starting from this index, search for the next nearest parking space
+	 * @return index of the nearest parking space
+	 */
+	int nextClosestParkingSpot(int startIndex){
+		double distance = Double.MAX_VALUE;
+		int bestIndex = -1;
+		for(int i = startIndex; i < myRound.size(); i++){
+			double distToSpace = myRound.get(i).geometry.distance(this.geometry);
+			if(distToSpace < distance){
+				distance = distToSpace;
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
+	}
+	
+	int nextClosestDelivery(int startIndex){
+		double distance = Double.MAX_VALUE;
+		int bestIndex = -1;
+		Coordinate c = this.geometry.getCoordinate();
+		for(int i = startIndex; i < miniRound.size(); i++){
+			double distToSpace = miniRound.get(i).deliveryLocation.distance(c);
+			if(distToSpace < distance){
+				distance = distToSpace;
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
+	}
+	
 	void cleanupAtDepot(){
-		
-		System.out.println("FINAL DELIVERD PARCELS: " + this.goodDelivery);
-		
+			
 		// write out the report
 		double roundTime = world.schedule.getTime() - roundStartTime;
 		history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
@@ -292,7 +341,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		miniRoundIndex = -1;
 		parkingPerRound = null;
 		myRound = null;
-		this.goodDelivery = 0;
 	}
 	
 	@Override
@@ -315,48 +363,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		parcels.addAll(ps);
 	}
 
-	// really basic right now: start with the first one and greedily pick the next closest, until you have them all
-/*	public void updateRound(){
-		if(parcels.size() <= 1 && (myVehicle != null && myVehicle.parcels.size() <= 1)) return;
-		
-		//ArrayList <Parcel> tempParcels = new ArrayList <Parcel> (parcels);
-		
-		if(myVehicle != null){
-			for(Parcel p: myVehicle.parcels){
-				ArrayList <Parcel> vParcels = new ArrayList <Parcel> ();
-				vParcels.add(p);
-				tempParcels.put(p, vParcels);
-			}
-		}
-		
-		MasonGeometry [] tempys = tempParcels.keySet().toArray(new MasonGeometry [tempParcels.size()]);
-		for(int i = 1; i < tempParcels.size(); i++){
-			MasonGeometry p = tempys[i - 1];
-			double dist = Double.MAX_VALUE;
-			int best = -1;
-			
-			for(int j = i; j < tempParcels.size(); j++){
-				Parcel pj = (Parcel) tempys[j];
-				double pjdist = pj.deliveryLocation.distance(((Parcel) p).deliveryLocation);
-				if(pjdist < dist){
-					dist = pjdist;
-					best = j;
-				}
-			}
-			
-			// store the next closest
-			ArrayList <Parcel> tempPs = new ArrayList <Parcel> ();
-			tempPs.add((Parcel) tempys[best]);
-			parkingPerRound.put(tempys[best], tempPs);
-			myRound.add(tempys[best]);
-			
-			// replace the elements
-			MasonGeometry transfer = tempys[i];
-			tempys[i] = tempys[best];
-			tempys[best] = transfer;			
-		}
-	}*/
-	
 	public void updateRoundClustered(){
 
 		myRound = new ArrayList <MasonGeometry> ();
@@ -417,6 +423,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// now go through the set of parcels and add parking spaces to the route until all parcels are sorted
 		Iterator iter = dummyList.iterator();
+		double bestDist = Double.MAX_VALUE;
 		while(allTempParcels.size() > 0 && iter.hasNext()){
 			
 			// get the next biggest one
@@ -429,14 +436,22 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			if(toDeliver.size() <= 0)
 				continue;
 			
-//			for(Parcel p: toDeliver)
-//				allTempParcels.remove(p);
 			allTempParcels.removeAll(toDeliver);
 			
 			MasonGeometry parkingSpaceItself = ((MasonGeometry)nextOne.getKey());
 			if(parkingSpaceItself.hasAttribute("parkingspace"))
 				parkingSpaceItself = (MasonGeometry)((AttributeValue)parkingSpaceItself.getAttribute("parkingspace")).getValue();
-			myRound.add(parkingSpaceItself);
+	
+			// start at the closest one!
+			double thisDist = parkingSpaceItself.geometry.distance(this.geometry);
+			if(thisDist < bestDist){
+				bestDist = thisDist;
+				myRound.add(0, parkingSpaceItself);
+			}
+			else
+				myRound.add(parkingSpaceItself);
+			
+			// save the record
 			parkingPerRound.put(parkingSpaceItself, toDeliver);
 		}
 		if(!iter.hasNext() && allTempParcels.size() > 0){

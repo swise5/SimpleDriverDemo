@@ -53,15 +53,13 @@ public class Parcel extends MobileAgent {
 	
 	public boolean deliver(Geometry targetGeo){
 		if(carryingUnit == null)
-			System.out.println("uhoh!!");
+			System.out.println("ERROR: delivered parcel has no assigned carrying unit");
 		else if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
-			// TODO OMG FIX IT
-			// TODO make it move away!!
 			this.geometry = targetGeo;
 			carryingUnit.removeParcel(this);
 			carryingUnit = null;
 			status = 3;
-			System.out.println("delivered: " + myId);
+//			System.out.println("delivered: " + myId);
 			updateLoc(targetGeo.getCoordinate());
 			return true;
 		}

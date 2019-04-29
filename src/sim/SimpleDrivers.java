@@ -76,8 +76,8 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 2;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
-	public static double speed_pedestrian = 7;
-	public static double speed_vehicle = 10;
+	public static double speed_pedestrian = 30;
+	public static double speed_vehicle = 100;
 
 	public static int loadingTime = 20;
 	public static int deliveryTime = 3;

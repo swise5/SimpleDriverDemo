@@ -126,7 +126,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	ArrayList <Parcel> getNextRound(){
 		if(rounds.size() > 0)
-			return rounds.remove(0);
+			return rounds.remove(world.random.nextInt(rounds.size()));
 		else
 			return null;
 	}
