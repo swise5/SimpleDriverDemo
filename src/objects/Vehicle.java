@@ -88,12 +88,14 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	public boolean transferTo(Object o, Burdenable b) {
 		try{
 			if(o instanceof ArrayList){
-				parcels.removeAll((ArrayList <Parcel>) o);
-				b.addParcels((ArrayList <Parcel>) o);
+				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
+				while(ps.size() > 0){
+					Parcel p = ps.remove(0);
+					p.transfer(this, b);
+				}
 			}
 			else {
-				parcels.remove((Parcel) o);
-				b.addParcel((Parcel) o);
+				((Parcel) o).transfer(this, b);
 			}
 			return true;
 		} catch (Exception e){
@@ -113,6 +115,7 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	
 	void setDriver(Driver d){
 		this.owner = d;
+		updateLoc(owner.getLocation());
 	}
 	
 	void LogWaypoint() {

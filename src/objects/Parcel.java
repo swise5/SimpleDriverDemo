@@ -3,12 +3,14 @@ package objects;
 import java.util.ArrayList;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
 
 import sim.SimpleDrivers;
 import swise.agents.MobileAgent;
 
 public class Parcel extends MobileAgent {
 
+	long myId;
 	Burdenable carryingUnit = null;
 	Coordinate deliveryLocation;
 	double dim_x, dim_y, dim_z, weight;
@@ -21,6 +23,7 @@ public class Parcel extends MobileAgent {
 		history = new ArrayList <String> ();
 		carrier.addParcel(this);
 		isMovable = true;
+		myId = System.nanoTime();
 	}
 	
 	public void setDeliveryLocation(Coordinate c){
@@ -38,6 +41,9 @@ public class Parcel extends MobileAgent {
 		try {
 			from.removeParcel(this);
 			to.addParcel(this);
+			carryingUnit = to;
+			if(carryingUnit == null)
+				System.out.println("transferred to null");
 			return true;			
 		} catch (Exception e){
 			e.printStackTrace();
@@ -45,16 +51,26 @@ public class Parcel extends MobileAgent {
 		}
 	}
 	
-	public boolean deliver(){
-		if(getLocation().distance(deliveryLocation) < SimpleDrivers.resolution){
-			// TODO make it move away!!
+	public boolean deliver(Geometry targetGeo){
+		if(carryingUnit == null)
+			System.out.println("ERROR: delivered parcel has no assigned carrying unit");
+		else if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
+			this.geometry = targetGeo;
 			carryingUnit.removeParcel(this);
+			carryingUnit = null;
 			status = 3;
-			updateLoc(deliveryLocation);
+//			System.out.println("delivered: " + myId);
+			updateLoc(targetGeo.getCoordinate());
 			return true;
 		}
 		status = 1;
 		return false;
 	}
 	
+	public boolean equals(Object o){
+		if(!(o instanceof Parcel))
+			return false;
+		Parcel p = (Parcel) o;
+		return myId == p.myId;
+	}
 }

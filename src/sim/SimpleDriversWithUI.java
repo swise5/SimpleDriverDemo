@@ -35,6 +35,7 @@ public class SimpleDriversWithUI extends GUIState {
 	
 	private GeomVectorFieldPortrayal vehicles = new GeomVectorFieldPortrayal();
 
+	private GeomVectorFieldPortrayal parkingCatchmentLocations = new GeomVectorFieldPortrayal();
 	
 	//SparseGridPortrayal2D driversPortrayal = new SparseGridPortrayal2D ();
 	public Display2D display;
@@ -85,7 +86,8 @@ public class SimpleDriversWithUI extends GUIState {
 		Color [] colors = new Color [100];
 		for(int i = 0; i < 100; i++){
 			levels[i] = i;
-			colors[i] = Color.getHSBColor(world.random.nextFloat(), 1, 1);////new Color(world.random.nextInt(255), world.random.nextInt(255), world.random.nextInt(255), 100);
+			Color mycol = Color.getHSBColor(world.random.nextFloat(), 1, 1);
+			colors[i] = new Color(mycol.getRed(), mycol.getGreen(), mycol.getBlue(), 80);
 		}
 		SegmentedColorMap scm = new SegmentedColorMap(levels, colors);
 		deliveryLocations.setPortrayalForAll(new AttributePolyPortrayal(
@@ -96,6 +98,10 @@ public class SimpleDriversWithUI extends GUIState {
 		parkingLocations.setField(world.parkingLayer);
 		parkingLocations.setPortrayalForAll(new GeomPortrayal(new Color(50,200,50,200), 30, true));
 		parkingLocations.setImmutableField(true);
+		
+		parkingCatchmentLocations.setField(world.parkingCatchmentLayer);
+		parkingCatchmentLocations.setPortrayalForAll(new GeomPortrayal(new Color(250,100,100,50), 50, true));
+		parkingCatchmentLocations.setImmutableField(true);
 		
 		drivers.setField(world.agentLayer);
 //		drivers.setPortrayalForAll(new GeomPortrayal(new Color(255,150,150), 20));
@@ -123,6 +129,7 @@ public class SimpleDriversWithUI extends GUIState {
 
 		display.attach(buildings, "Buildings");
 		display.attach(roads, "Roads");
+		display.attach(parkingCatchmentLocations, "Parkingthingy");
 		display.attach(parkingLocations, "Parking");
 		
 		display.attach(vehicles, "Vehicles");

@@ -42,6 +42,7 @@ import utilities.DriverUtilities;
 import swise.objects.InputCleaning;
 import swise.objects.RoadNetworkUtilities;
 
+import com.vividsolutions.jts.awt.PointShapeFactory;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.CoordinateSequenceFilter;
 import com.vividsolutions.jts.geom.Envelope;
@@ -50,6 +51,7 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
+import com.vividsolutions.jts.util.GeometricShapeFactory;
 
 import ec.util.MersenneTwisterFast;
 import objects.Depot;
@@ -74,14 +76,15 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 2;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
-	public static double speed_pedestrian = 1.4;//7
-	public static double speed_vehicle = 10;
+	public static double speed_pedestrian = 30;
+	public static double speed_vehicle = 100;
 
 	public static int loadingTime = 20;
 	public static int deliveryTime = 3;
 	public static int approxManifestSize = 100;
+	public static double parkingRadius = 300;
 
-	public static int numParcels = 100;
+	public static int numParcels = 1000;
 	public static double probFailedDelivery = .126;
 	
 	public boolean writeModelStatsToFile = true;
@@ -105,6 +108,7 @@ public class SimpleDrivers extends SimState {
 	
 	public GeomVectorField vehiclesLayer = new GeomVectorField(grid_width, grid_height);
 	
+	public GeomVectorField parkingCatchmentLayer = new GeomVectorField(grid_width, grid_height);
 	
 	
 	public GeomVectorField networkLayer = new GeomVectorField(grid_width, grid_height);
@@ -182,7 +186,9 @@ public class SimpleDrivers extends SimState {
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
-			InputCleaning.readInVectorLayer(parkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
+			
+			GeomVectorField rawParkingLayer = new GeomVectorField(grid_width, grid_height);
+			InputCleaning.readInVectorLayer(rawParkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
 						
 			//////////////////////////////////////////////
 			////////////////// CLEANUP ///////////////////
@@ -201,6 +207,7 @@ public class SimpleDrivers extends SimState {
 			deliveryLocationLayer.setMBR(MBR);
 			agentLayer.setMBR(MBR);
 			parkingLayer.setMBR(MBR);
+			parkingCatchmentLayer.setMBR(MBR);
 			
 			vehiclesLayer.setMBR(MBR);
 			
@@ -236,65 +243,34 @@ public class SimpleDrivers extends SimState {
 			
 			roadLayer.setMBR(MBR);
 
-
-			/////////////////////
-			///////// Clean up roads for Persons to use ///////////
-			/////////////////////
-						
-/*			Network majorRoads = RoadNetworkUtilities.extractMajorRoads(roads);
-			RoadNetworkUtilities.testNetworkForIssues(majorRoads);
-
-			// assemble list of secondary versus local roads
-			ArrayList <Edge> myEdges = new ArrayList <Edge> ();
-			GeomVectorField secondaryRoadsLayer = new GeomVectorField(grid_width, grid_height);
-			GeomVectorField localRoadsLayer = new GeomVectorField(grid_width, grid_height);
-			for(Object o: majorRoads.allNodes){
-				
-				majorRoadNodesLayer.addGeometry((GeoNode)o);
-				
-				for(Object e: roads.getEdges(o, null)){
-					Edge ed = (Edge) e;
-					
-					myEdges.add(ed);
-										
-					String type = ((MasonGeometry)ed.getInfo()).getStringAttribute("class");
-					if(type.equals("secondary"))
-							secondaryRoadsLayer.addGeometry((MasonGeometry) ed.getInfo());
-					else if(type.equals("local"))
-							localRoadsLayer.addGeometry((MasonGeometry) ed.getInfo());					
-				}
-			}
-*/
-			System.gc();
-			
-
 			// set up depots
 			setupDepots(dummyDepotLayer);
-			
-			// reset MBRs in case they got messed up during all the manipulation
-			
-			// standardize the MBRs so that the visualization lines up
-			
-			/*heatmap = new GeomGridField();
-			heatmap.setMBR(MBR);
-			heatmap.setGrid(new IntGrid2D((int)(MBR.getWidth() / 100), (int)(MBR.getHeight() / 100), 0));
-*/
-			
-
 			
 			//////////////////////////////////////////////
 			////////////////// AGENTS ///////////////////
 			//////////////////////////////////////////////
 
-			// first calculate the area within which to distribute parcels
-/*			Geometry parkingArea = null;
-			for(Object o: parkingLayer.getGeometries()){
+
+			// set up parking info
+			GeometricShapeFactory shapeFactory = new GeometricShapeFactory();
+			shapeFactory.setNumPoints(16);
+			shapeFactory.setSize(parkingRadius);
+			for(Object o: rawParkingLayer.getGeometries()){
+
 				MasonGeometry mg = (MasonGeometry) o;
-				if(parkingArea == null) parkingArea = (Geometry) mg.geometry.clone();
-				else parkingArea = mg.geometry.union(parkingArea);
+
+				// snap parking layer to road network
+				Coordinate c = snapPointToRoadNetwork(mg.geometry.getCoordinate());
+				MasonGeometry newPS = new MasonGeometry(fa.createPoint(c));
+				parkingLayer.addGeometry(newPS);
+
+				// set up the catchments
+				shapeFactory.setCentre(newPS.geometry.getCoordinate());
+				MasonGeometry myParkingArea = new MasonGeometry(shapeFactory.createCircle());
+				myParkingArea.addAttribute("parkingspace", newPS);
+				parkingCatchmentLayer.addGeometry(myParkingArea);
 			}
-			parkingArea = parkingArea.convexHull();
-*/
+
 			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
@@ -312,11 +288,11 @@ public class SimpleDrivers extends SimState {
 				vehiclesLayer.addGeometry(v);
 			}
 
+
 			// seed the simulation randomly
-			seedRandom(System.currentTimeMillis());
+			//seedRandom(System.currentTimeMillis());
 
 
-//			MBR.init(530500, 534500, 180000, 183000);
 			MBR.init(530000, 534500, 179500, 182500);
 			
 			buildingLayer.setMBR(MBR);
@@ -329,6 +305,9 @@ public class SimpleDrivers extends SimState {
 			parkingLayer.setMBR(MBR);
 			
 			vehiclesLayer.setMBR(MBR);
+			parkingCatchmentLayer.setMBR(MBR);
+			
+			
 		} catch (Exception e) { e.printStackTrace();}
     }
 	
@@ -429,19 +408,21 @@ public class SimpleDrivers extends SimState {
 			
 			Point deliveryLoc = ((MasonGeometry)buildings.get(random.nextInt(buildings.size()))).geometry.getCentroid();
 			Coordinate myc = deliveryLoc.getCoordinate();
+			Coordinate snappedC = snapPointToRoadNetwork(myc);
 			
 //			GeoNode gn = (GeoNode) roadNodes.get(random.nextInt(roadNodes.size()));
 //			Coordinate myc = gn.getGeometry().getCoordinate();
 			
-			if(!MBR.contains(myc)){
+//			if(!MBR.contains(myc)){
+			if(!MBR.contains(snappedC)){
 				i--;
 				continue;
 			}
 			//Coordinate myc = new Coordinate(random.nextInt(myw) + myminx, random.nextInt(myh) + myminy);
 					
 			Parcel p = new Parcel(d);
-			p.setDeliveryLocation(myc);
-			myParcels.add(p);			
+			p.setDeliveryLocation(new Coordinate(snappedC.x, snappedC.y));
+			myParcels.add(p);
 		}		
 	}
 

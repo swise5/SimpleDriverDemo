@@ -1,7 +1,13 @@
 package objects;
 
 import java.util.ArrayList;
-import java.util.UUID;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map.Entry;
 
 import sim.SimpleDrivers;
 import sim.engine.SimState;
@@ -9,6 +15,7 @@ import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.field.network.Edge;
 import sim.util.Bag;
+import sim.util.geo.AttributeValue;
 import sim.util.geo.MasonGeometry;
 import swise.agents.TrafficAgent;
 import swise.objects.network.GeoNode;
@@ -30,16 +37,20 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	double roundDriveDistance = 0, roundWalkDistance = 0;
 
 	ArrayList <Parcel> parcels = new ArrayList <Parcel> ();
-	ArrayList <Parcel> myRound = new ArrayList <Parcel> ();
+	//ArrayList <Parcel> myRound = new ArrayList <Parcel> ();
+	ArrayList <MasonGeometry> myRound = null;
+	HashMap <MasonGeometry, ArrayList <Parcel>> parkingPerRound = new HashMap <MasonGeometry, ArrayList <Parcel>> (); 
 	ArrayList <String> history = new ArrayList <String> ();
 
-	int index = 0;
+	int roundIndex = 0;
+	int miniRoundIndex = -1;
 	public Stoppable stopper = null;
 	double speed = 3.; // m per second
 	
 	double enteredRoadSegment = -1;
 
 	Parcel currentDelivery = null;
+	ArrayList <Parcel> miniRound = null;
 	Vehicle myVehicle = null;
 	boolean inVehicle = false;
 	
@@ -143,91 +154,140 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		roundStartTime = world.schedule.getTime();
 		roundDriveDistance = 0;
 		roundWalkDistance = 0;
-		updateRound();
+	}
+	
+	
+	boolean attemptDelivery(double time){
+		
+		// failed delivery ):
+		if (world.random.nextDouble() < world.probFailedDelivery) { 
+			System.out.println(
+					this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
+			miniRoundIndex++;
+		} 
+		
+		// successful delivery!
+		else { 
+			currentDelivery.deliver(world.fa.createPoint(currentDelivery.deliveryLocation));
+			miniRound.remove(miniRoundIndex);
+			//System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
+			world.deliveryLocationLayer.addGeometry(currentDelivery);
+		}
+
+		// reset things
+		world.schedule.scheduleOnce(time + world.deliveryTime, this);
+		currentDelivery = null;
+		path = null;
+
+		return true;
+	}
+	
+	void exitVehicle(){
+		if(!inVehicle || myVehicle == null){
+			System.out.println("ERROR: not in vehicle!");
+			return;
+		}
+		
+		inVehicle = false;
+		myVehicle.setStationary();
+		this.speed = SimpleDrivers.speed_pedestrian;
+	}
+	
+	void enterVehicle(){
+		if(myVehicle == null){
+			System.out.println("ERROR: do not have a vehicle!");
+			return;
+		}
+		
+		inVehicle = true;
+		myVehicle.setDriver(this);
+		this.speed = SimpleDrivers.speed_vehicle;
+	}
+	
+	void scheduleNextGoal(Coordinate c){
+		headFor(c);
+		world.schedule.scheduleOnce(this);
 	}
 	
 	@Override
 	public void step(SimState arg0) {
 		
+		for(Parcel p: parcels){
+			if(p.carryingUnit == null)
+				System.out.println("lolwut " + p.myId);
+		}
+		
 		double time = world.schedule.getTime(); // find the current time
 		
-		//this bit would be better at the end of the agent update function, I think
-		if(inVehicle) {
-			UpdateVehiclePosition();
+		// make sure the round has been defined, and update it if not
+		if(this.myRound == null){
+			updateRoundClustered();
 		}
 
-		// if you're in the process of delivering it, proceed
-		if (currentDelivery != null && path != null && path.size() == 0) {
-			
-			// if you've arrived at the delivery point, try to deliver the parcel!
-			if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
-				currentDriverState = driverStates.DELIVERING;
-
-				// attempt delivery
-				if (world.random.nextDouble() < world.probFailedDelivery) { // failed delivery ):
-					index++;
-					System.out.println(
-							this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
-				} else { // successful delivery!
-					this.removeParcel(currentDelivery);
-					myRound.remove(currentDelivery);
-					System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
-					currentDelivery.geometry = world.fa.createPoint(currentDelivery.deliveryLocation);
-					world.deliveryLocationLayer.addGeometry(currentDelivery);
-				}
-
-				world.schedule.scheduleOnce(time + world.deliveryTime, this);
-				currentDelivery = null;
-				path = null;
-
-				return;
-			}
-
-			else if (inVehicle == false){
-				walkTo(currentDelivery.deliveryLocation, world.resolution);
-				world.schedule.scheduleOnce(this);
-				
-				currentDriverState = driverStates.WALKING_TO_DELIVERY;
-				return;
-			}
-			
-			// get out of the car!!
-			else {
-				roundWalkDistance += 2 * getLocation().distance(currentDelivery.deliveryLocation);
-				inVehicle = false;
-				myVehicle.setStationary();
-				walkTo(currentDelivery.deliveryLocation, world.resolution);
-				world.schedule.scheduleOnce(this);
-				
-				currentDriverState = driverStates.WALKING_TO_DELIVERY;
-				return;
-			}
-		}
-		
-		// if you've just finished the delivery, go back to the vehicle
-		else if (inVehicle == false) {
-			// either walk toward it or get in it!
-			if (geometry.getCoordinate().distance(myVehicle.getLocation()) > world.resolution) {
-				this.walkTo(myVehicle.getLocation(), world.resolution);
-				
-				currentDriverState = driverStates.WALKING_TO_VEHICLE;
-			}
-
-			// get in the vehicle!
-			else {
-				path = null;
-				inVehicle = true;
-				myVehicle.setDriver(this);
-				currentDriverState = driverStates.DRIVING;
-			}
-
+		// is there more path to travel? If so, take it
+		if(path != null){
+			navigate(world.resolution);
 			world.schedule.scheduleOnce(this);
 			return;
 		}
 		
-		// if you're still moving, keep moving
-		else if(path != null){
-			navigate(world.resolution);
+		// if you're in the process of delivering a parcel, proceed
+		if (currentDelivery != null) {
+			
+			// if not in vehicle, attempt delivery
+			if(myVehicle == null || !inVehicle){
+				if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
+					attemptDelivery(time);
+					currentDelivery = null; // it has been attempted! TODO ensure this is sorted
+					return;
+				}
+				else{
+					this.walkTo(currentDelivery.deliveryLocation, world.resolution);
+					world.schedule.scheduleOnce(this);
+					return;
+				}
+			}
+			
+			// otherwise get out of vehicle and try again next time
+			else if(inVehicle){
+				exitVehicle();
+				world.schedule.scheduleOnce(this);
+				
+				currentDriverState = driverStates.WALKING_TO_DELIVERY;
+				return;
+			}
+
+			else { // a wild problem appears!
+				System.out.println("ERROR: problem with driver behaviours for " + this.toString());
+				return;
+			}			
+		}
+
+		// otherwise if we've got to the next miniround starting point, transition to doing a miniround!
+		else if(roundIndex < myRound.size() && 
+				myRound.get(roundIndex).geometry.getCoordinate().distance(this.geometry.getCoordinate()) <= world.resolution && 
+				miniRoundIndex < 0){
+			miniRound = parkingPerRound.get(myRound.get(roundIndex));
+			//myRound.remove(roundIndex); // clean it up - we'll not come here again
+			miniRoundIndex = 0;
+			
+			if(myVehicle != null && miniRound != null){
+				ArrayList <Parcel> dummyParcels = (ArrayList <Parcel>) miniRound.clone();
+				dummyParcels.retainAll(myVehicle.parcels);
+				myVehicle.transferTo(dummyParcels, this);
+			}
+			
+			world.schedule.scheduleOnce(this);
+			return;
+		}
+		
+		// otherwise if you've been trying to get in the vehicle and are close enough, get in
+		else if(miniRound == null && myVehicle != null && !inVehicle &&
+				myVehicle.getLocation().distance(geometry.getCoordinate()) <= world.resolution){
+			
+			transferTo(parcels, myVehicle);
+			
+			enterVehicle();
 			world.schedule.scheduleOnce(this);
 			
 			if(targetDestination.equals2D(homeBase)) {
@@ -241,71 +301,126 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			}
 			return;
 		}
-		
-		// otherwise, if you've still got parcels to deliver, deliver that parcel! 
-		else if(parcels.size() > index){
 
-			Parcel nextParcel = parcels.get(index);
-			currentDelivery = nextParcel;
-			headFor(nextParcel.deliveryLocation);
-			roundDriveDistance += calculateDistance(path);
-			world.schedule.scheduleOnce(this);
-			
-			currentDriverState = driverStates.DRIVING;
-			return;
-		}
+
+		// HOUSEKEEPING ON MINIROUND
 		
-		else if(myRound.size() > 0){
-			// TODO assumes I'm at the vehicle!!!!
-			Parcel nextParcel = myRound.get(0);
-			nextParcel.transfer(myVehicle, this);
-			currentDelivery = nextParcel;
-			headFor(nextParcel.deliveryLocation);
-			roundDriveDistance += calculateDistance(path);
-			world.schedule.scheduleOnce(this);
+		// if anything left to deliver on this miniround, deliver it
+		if(miniRound != null && miniRoundIndex < miniRound.size()){
 			
-			currentDriverState = driverStates.DRIVING;
-			return;
-		}
-		
-		// otherwise, if you've finished delivering all your parcels and you're not at the depot,
-		// go back to the depot
-		else if(homeBase.distance(geometry.getCoordinate()) > world.resolution){
-			headFor(homeBase);
-			world.schedule.scheduleOnce(this);
-			currentDriverState = driverStates.DRIVING_TO_DEPOT;
-			return;
-		}
-		
-		//  otherwise, you're at the Depot - enter it
-		else {
-			currentDriverState = driverStates.LOADING;
-			double roundTime = world.schedule.getTime() - roundStartTime;
-			history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
-			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
-			
-			RecordCurrentRoundStats();
-			
-			Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
-			if(b.size() > 0){
-				Depot d = (Depot) b.get(0);
-				d.enterDepot(this);
-				if(parcels.size() > 0){
-					System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
-					transferTo(parcels, d);
-					if(myVehicle != null)
-						myVehicle.transferTo(myVehicle.parcels, d);
-				}
+			// make sure that you're heading to the next closest delivery point
+			int nextClosestDeliveryPoint = nextClosestDelivery(miniRoundIndex);
+			if(nextClosestDeliveryPoint > miniRoundIndex){
+				Parcel p = miniRound.remove(nextClosestDeliveryPoint);
+				miniRound.add(miniRoundIndex, p);
 			}
 			
-			ResetRoundStats();
+			// schedule the next delivery
+			currentDelivery = miniRound.get(miniRoundIndex);
+			scheduleNextGoal(currentDelivery.deliveryLocation);
+			return;
 		}
-	}
-	
-	void UpdateVehiclePosition() {
-		myVehicle.setLocation(this.geometry.getCoordinate());
+
+		// if the miniround has been completed, increment the round counter
+		else if(miniRound != null && miniRoundIndex >= miniRound.size()){
+			miniRound = null;
+			miniRoundIndex = -1;
+			roundIndex++;
+		}
+		
+		// this miniround has been completed. Head back to the vehicle, if appropriate
+		if(myVehicle != null && !inVehicle){
+			scheduleNextGoal(myVehicle.getLocation());
+			return;
+		}
+		
+		// HOUSEKEEPING ON ROUND
+		
+		// otherwise, is there another organising point to hit up? If so, go to it
+		if(roundIndex < myRound.size()){
+			
+			// make sure you're heading for the next closest spot, rejigging the ordering if necessary
+			int nextClosestRallyPoint = nextClosestParkingSpot(roundIndex);
+			if(nextClosestRallyPoint > roundIndex){
+				MasonGeometry temp = myRound.remove(nextClosestRallyPoint);
+				myRound.add(roundIndex, temp);
+			}
+			
+			// schedule to move on to the next closest parking space
+			scheduleNextGoal(myRound.get(roundIndex).geometry.getCoordinate());
+			return;
+		}
+		// the round is finished! Back to the depot with you!
+		else if(homeBase.distance(geometry.getCoordinate()) > world.resolution) { 
+			scheduleNextGoal(homeBase);
+			return;
+		}
+		//  otherwise, you're at the Depot - enter it
+		else {
+			cleanupAtDepot();
+		}
+
 	}
 
+	
+	/**
+	 * 
+	 * @param startIndex - starting from this index, search for the next nearest parking space
+	 * @return index of the nearest parking space
+	 */
+	int nextClosestParkingSpot(int startIndex){
+		double distance = Double.MAX_VALUE;
+		int bestIndex = -1;
+		for(int i = startIndex; i < myRound.size(); i++){
+			double distToSpace = myRound.get(i).geometry.distance(this.geometry);
+			if(distToSpace < distance){
+				distance = distToSpace;
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
+	}
+	
+	int nextClosestDelivery(int startIndex){
+		double distance = Double.MAX_VALUE;
+		int bestIndex = -1;
+		Coordinate c = this.geometry.getCoordinate();
+		for(int i = startIndex; i < miniRound.size(); i++){
+			double distToSpace = miniRound.get(i).deliveryLocation.distance(c);
+			if(distToSpace < distance){
+				distance = distToSpace;
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
+	}
+	
+	void cleanupAtDepot(){
+			
+		// write out the report
+		double roundTime = world.schedule.getTime() - roundStartTime;
+		history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
+		System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
+		
+		// transfer all undelivered parcels
+		Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
+		if(b.size() > 0){
+			Depot d = (Depot) b.get(0);
+			d.enterDepot(this);
+			System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
+			if(parcels.size() > 0)
+				transferTo(parcels, d);
+			if(myVehicle != null)
+				myVehicle.transferTo(myVehicle.parcels, d);
+		}
+		
+		// reset everything
+		roundIndex = 0;
+		miniRoundIndex = -1;
+		parkingPerRound = null;
+		myRound = null;
+	}
+	
 	@Override
 	public void addParcel(Parcel p) {
 		parcels.add(p);
@@ -326,46 +441,118 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		parcels.addAll(ps);
 	}
 
-	// really basic right now: start with the first one and greedily pick the next closest, until you have them all
-	public void updateRound(){
-		if(parcels.size() <= 1 && (myVehicle != null && myVehicle.parcels.size() <= 1)) return;
+	public void updateRoundClustered(){
+
+		myRound = new ArrayList <MasonGeometry> ();
+		parkingPerRound = new HashMap <MasonGeometry, ArrayList <Parcel>> ();
 		
-		ArrayList <Parcel> tempParcels = new ArrayList <Parcel> (parcels);
-		if(myVehicle != null)
-			tempParcels.addAll(myVehicle.parcels);
+		HashMap <MasonGeometry, ArrayList <Parcel>> parkingSpaceOptions = new HashMap <MasonGeometry, ArrayList <Parcel>> ();
 		
-		for(int i = 1; i < tempParcels.size(); i++){
-			Parcel p = tempParcels.get(i - 1);
-			double dist = Double.MAX_VALUE;
-			int best = -1;
+		ArrayList <Parcel> allTempParcels = new ArrayList <Parcel> ();
+		allTempParcels.addAll(parcels);
+		if(this.myVehicle != null)
+			allTempParcels.addAll(myVehicle.parcels);
+		
+		// go through Parcels and allocate parking spaces
+		for(Parcel p: allTempParcels){
+		
+			Coordinate parkingOnRoad = world.snapPointToRoadNetwork(p.getDeliveryLocation());
 			
-			for(int j = i; j < tempParcels.size(); j++){
-				Parcel pj = tempParcels.get(j);
-				double pjdist = pj.deliveryLocation.distance(p.deliveryLocation);
-				if(pjdist < dist){
-					dist = pjdist;
-					best = j;
+			// look for covering parking spaces
+			Bag b = world.parkingCatchmentLayer.getCoveringObjects(world.fa.createPoint(parkingOnRoad));
+			
+			// if there are no nearby parking spaces, we'll plan around the delivery itself
+			if(b.size() == 0){
+				
+				MasonGeometry mg = new MasonGeometry(world.fa.createPoint(parkingOnRoad));				
+				ArrayList <Parcel> ps = new ArrayList <Parcel>();
+				ps.add(p);
+				parkingSpaceOptions.put(mg, ps);
+			}
+			
+			// if there ARE nearby parking spaces, we'll add this to the list of possible spaces!
+			else{
+				for(Object o: b){
+					MasonGeometry mg = (MasonGeometry) o;
+
+					if(parkingSpaceOptions.containsKey(mg))
+						parkingSpaceOptions.get(mg).add(p);
+					else {
+						ArrayList <Parcel> ps = new ArrayList <Parcel>();
+						ps.add(p);
+						parkingSpaceOptions.put(mg, ps);
+					}
 				}
 			}
-			Parcel closestParcel = tempParcels.remove(best);
-			tempParcels.add(i, closestParcel);
 		}
-		myRound = tempParcels;
 		
-		roundParcelsCount = myRound.size();
-		firstDeliveryInRound = myRound.get(0);
+		// sort the list of parking spaces in order of descending number of parcels associated with it
+		List dummyList = new LinkedList(parkingSpaceOptions.entrySet());
+		Collections.sort(dummyList, new Comparator<Entry<MasonGeometry, ArrayList <Parcel>>>()
+        {
+
+			@Override
+			public int compare(Entry<MasonGeometry, ArrayList <Parcel>> o1, Entry<MasonGeometry, ArrayList<Parcel>> o2) {
+				if(o1.getValue().size() > o2.getValue().size()) return -1;
+				else if (o1.getValue().size() == o2.getValue().size()) return 0;
+				return 1;
+			}
+        });
+		
+		// now go through the set of parcels and add parking spaces to the route until all parcels are sorted
+		Iterator iter = dummyList.iterator();
+		double bestDist = Double.MAX_VALUE;
+		while(allTempParcels.size() > 0 && iter.hasNext()){
+			
+			// get the next biggest one
+			Entry <MasonGeometry, ArrayList <Parcel>> nextOne = (Entry <MasonGeometry, ArrayList <Parcel>>)
+					iter.next();
+			
+			ArrayList <Parcel> toDeliver = nextOne.getValue();
+			toDeliver.retainAll(allTempParcels);
+			
+			if(toDeliver.size() <= 0)
+				continue;
+			
+			allTempParcels.removeAll(toDeliver);
+			
+			MasonGeometry parkingSpaceItself = ((MasonGeometry)nextOne.getKey());
+			if(parkingSpaceItself.hasAttribute("parkingspace"))
+				parkingSpaceItself = (MasonGeometry)((AttributeValue)parkingSpaceItself.getAttribute("parkingspace")).getValue();
+	
+			// start at the closest one!
+			double thisDist = parkingSpaceItself.geometry.distance(this.geometry);
+			if(thisDist < bestDist){
+				bestDist = thisDist;
+				myRound.add(0, parkingSpaceItself);
+			}
+			else
+				myRound.add(parkingSpaceItself);
+			
+			// save the record
+			parkingPerRound.put(parkingSpaceItself, toDeliver);
+		}
+		if(!iter.hasNext() && allTempParcels.size() > 0){
+			System.out.println("but whyyy");
+			for(Parcel pot: allTempParcels)
+				System.out.println(pot.deliveryLocation.toString());
+		}
+		
 	}
 	
 	@Override
 	public boolean transferTo(Object o, Burdenable b) {
 		try{
 			if(o instanceof ArrayList){
-				parcels.removeAll((ArrayList <Parcel>) o);
-				b.addParcels((ArrayList <Parcel>) o);
+				ArrayList <Parcel> ps = (ArrayList <Parcel>) o;
+				while(ps.size() > 0){
+					Parcel p = ps.remove(0);
+					p.transfer(this, b);
+				}
+					
 			}
 			else {
-				parcels.remove((Parcel) o);
-				b.addParcel((Parcel) o);
+				((Parcel) o).transfer(this, b);
 			}
 			return true;
 		} catch (Exception e){
@@ -408,34 +595,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		return -1;		
 	}
 	
-	static double thetaFromDotProd(double ax, double ay, double bx, double by){
-		double ah = Math.sqrt(ax * ax + ay * ay), bh = Math.sqrt(bx * bx + by * by);
-		return (ax * bx + ay * by) / (ah * bh);
-	}
-	
-	/*protected static double bearing(double lat1, double lon1, double lat2, double lon2){
-		double longDiff= lon2-lon1;
-		double y = Math.sin(longDiff)*Math.cos(lat2);
-		double x = Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(longDiff);
-
-		return Math.toDegrees((Math.atan2(y, x))+360)%360;
-	}*/
-	
 	public int walkTo(Coordinate c, double resolution){
 		Coordinate myLoc = geometry.getCoordinate();
 		double dx = c.x - myLoc.x, dy = c.y - myLoc.y;
 
-		//double theta = Math.acos(thetaFromDotProd(myLoc.x, myLoc.y, c.x, c.y));
-
 		double theta = Math.atan2(dy, dx);
 		
 		double hypot = Math.sqrt(dx * dx + dy * dy);
-		double moveFactor = Math.min(hypot, world.speed_pedestrian);
-		
-		
-		//double moveFactor = world.speed_pedestrian / hypot;
-		//Coordinate newLoc = new Coordinate(myLoc.x + moveFactor * dx, myLoc.y + moveFactor * dy);
-		
+		double moveFactor = Math.min(hypot, world.speed_pedestrian);		
 		double cosFriend = moveFactor * Math.cos(theta), sinFriend = moveFactor * Math.sin(theta);
 		
 		Coordinate newLoc = new Coordinate(myLoc.x + cosFriend, myLoc.y + sinFriend);

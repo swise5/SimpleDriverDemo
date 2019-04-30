@@ -33,8 +33,7 @@ public class DepotUtilities {
 			rounds.add(new ArrayList <Parcel> ());
 		}
 		
-		// define the limits on the distances
-		
+		// define the limits on the distances		
 		double dx = width / roundsPerSide; // the width cut into those chunks
 		double dy = height / roundsPerSide; // the height cut into those relative chunks
 		int xperRow = (int)Math.floor(roundsPerSide);
