@@ -76,11 +76,11 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 1;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
-	public static double speed_pedestrian = 30;
-	public static double speed_vehicle = 100;
+	public static double speed_pedestrian = 1.5*15;
+	public static double speed_vehicle = 4.02*15;
 
-	public static int loadingTime = 20;
-	public static int deliveryTime = 3;
+	public static int loadingTime = 20*4;
+	public static int deliveryTime = 3*4;
 	public static int approxManifestSize = 50;
 	public static double parkingRadius = 300;
 
@@ -469,8 +469,9 @@ public class SimpleDrivers extends SimState {
 		try{
 			if(writeModelStatsToFile) {
 				// save the model stats
-				BufferedWriter output = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + ".txt"));
-				BufferedWriter outputRounds = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_rounds.txt"));
+				String simRunUID = dirName + "output_" + mySeed + "_" + java.time.Instant.now().getEpochSecond();
+				BufferedWriter output = new BufferedWriter(new FileWriter(simRunUID + ".txt"));
+				BufferedWriter outputRounds = new BufferedWriter(new FileWriter(simRunUID + "_rounds.txt"));
 				
 				for(Driver a: agents){
 					for(String s: a.getHistory())
@@ -485,7 +486,7 @@ public class SimpleDrivers extends SimState {
 				outputRounds.close();
 				
 				if(writeFullModelStats) {
-					BufferedWriter outputWaypoints = new BufferedWriter(new FileWriter(dirName + "output" + mySeed + "_waypoints.txt"));
+					BufferedWriter outputWaypoints = new BufferedWriter(new FileWriter(simRunUID + "_waypoints.txt"));
 					
 					for(Driver a: agents){
 						for(String s: a.getWaypointsTrace())
