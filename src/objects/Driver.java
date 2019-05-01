@@ -21,6 +21,7 @@ import sim.util.geo.MasonGeometry;
 import swise.agents.TrafficAgent;
 import swise.objects.network.GeoNode;
 import swise.objects.network.ListEdge;
+import utilities.DriverUtilities;
 import utilities.DriverUtilities.driverStates;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -155,13 +156,17 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		roundStartTime = world.schedule.getTime();
 		roundDriveDistance = 0;
 		roundWalkDistance = 0;
+		roundParcelsCount = parcels.size();
+		if(myVehicle != null)
+			roundParcelsCount += myVehicle.parcels.size();
 	}
 	
 	
 	boolean attemptDelivery(double time){
 		
 		// failed delivery ):
-		if (world.random.nextDouble() < world.probFailedDelivery) { 
+		double mynextrand = world.random.nextDouble(); 
+		if (mynextrand < world.probFailedDelivery) { 
 			System.out.println(
 					this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
 			miniRoundIndex++;
@@ -290,17 +295,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			
 			enterVehicle();
 			world.schedule.scheduleOnce(this);
-			
-			
-			if(targetDestination.equals2D(homeBase)) {
-				currentDriverState = driverStates.DRIVING_TO_DEPOT;
-			}
-			else if(currentDelivery != null && currentDelivery.getGeometry().getCoordinate().equals(firstDeliveryInRound.getGeometry().getCoordinate())) {
-				currentDriverState = driverStates.DRIVING_FROM_DEPOT;				
-			}
-			else {
-				currentDriverState = driverStates.DRIVING;
-			}
+				
+			currentDriverState = driverStates.DRIVING;
 			return;
 		}
 
@@ -333,6 +329,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		// this miniround has been completed. Head back to the vehicle, if appropriate
 		if(myVehicle != null && !inVehicle){
 			scheduleNextGoal(myVehicle.getLocation());
+			currentDriverState = driverStates.WALKING_TO_VEHICLE;
 			return;
 		}
 		
@@ -352,9 +349,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			scheduleNextGoal(myRound.get(roundIndex).geometry.getCoordinate());
 			return;
 		}
+		
 		// the round is finished! Back to the depot with you!
 		else if(homeBase.distance(geometry.getCoordinate()) > world.resolution) { 
-			scheduleNextGoal(homeBase);
+			returnToDepot();
 			return;
 		}
 		//  otherwise, you're at the Depot - enter it
@@ -364,6 +362,17 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 	}
 
+	
+	/**
+	 * Schedule the Driver to return to the home Depot. Change the status based on whether they have a vehicle.
+	 */
+	void returnToDepot(){
+		scheduleNextGoal(homeBase);
+		if(myVehicle != null)
+			currentDriverState = driverStates.DRIVING_TO_DEPOT;
+		else
+			currentDriverState = driverStates.WALKING_TO_DEPOT;
+	}
 	
 	/**
 	 * 
@@ -404,12 +413,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
 		System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
 		
+		recordCurrentRoundStats();
+		resetRoundStats();
+		
 		// transfer all undelivered parcels
 		Bag b = world.depotLayer.getObjectsWithinDistance(geometry, world.resolution);
 		if(b.size() > 0){
 			Depot d = (Depot) b.get(0);
 			d.enterDepot(this);
-			System.out.println("Round finished - driver " + this.toString() + " has returned with " + parcels.size());
+			int numLeftovers = parcels.size();
+			if(myVehicle != null)
+				numLeftovers += myVehicle.parcels.size();
+			System.out.println("Round finished - driver " + this.toString() + " has returned with " + numLeftovers);
 			if(parcels.size() > 0)
 				transferTo(parcels, d);
 			if(myVehicle != null)
@@ -421,6 +436,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		miniRoundIndex = -1;
 		parkingPerRound = null;
 		myRound = null;
+		currentDriverState = driverStates.DEFAULT;
 	}
 	
 	@Override
@@ -888,15 +904,6 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		return 1;
 	}
 
-	
-	public double calculateDistance(ArrayList <Edge> edges){
-		double result = 0;
-		for(Edge e: edges){
-			result += ((MasonGeometry)e.info).geometry.getLength();
-		}
-		return result;
-	}
-	
 	public void assignVehicle(Vehicle v){
 		myVehicle = v;
 		inVehicle = true;
@@ -960,6 +967,16 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 				distanceWalked += distanceFromPreviousStep;
 				timeSinceRoundStarted ++;
 				break;
+			case WALKING_TO_DEPOT:
+				timeSpentWalking++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
+			case WALKING_FROM_DEPOT:
+				timeSpentWalking++;
+				distanceWalked += distanceFromPreviousStep;
+				timeSinceRoundStarted ++;
+				break;
 			case DELIVERING:
 				timeSpentVehicleParked++;
 				distanceWalked += distanceFromPreviousStep;
@@ -976,7 +993,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		}
 	}
 	
-	void ResetRoundStats() {
+	void resetRoundStats() {
 		timeSpentDriving = 0;
 		timeSpentWalking = 0;
 		timeSpentDrivingStem = 0;
@@ -987,7 +1004,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		timeSinceRoundStarted = 0;
 	}
 	
-	void RecordCurrentRoundStats() {
+	void recordCurrentRoundStats() {
 		/*
 		 * row format:
 		 * roundId, driverId, roundSequenceId, roundDuration (s), driveTime (s), walkTime (s), parkTime (s), driveDistance (m), walkDistance (m),
@@ -995,12 +1012,18 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		 */
 		String roundId = shortID + "-" + roundIndex;
 		double totalDistanceCovered = distanceDriven+distanceWalked;
-		int successfulJobs = roundParcelsCount - parcels.size();
+		int unsuccessfulJobs = parcels.size();
+		if(myVehicle != null)
+			unsuccessfulJobs += myVehicle.parcels.size();
 		
 		String r = roundId+","+shortID+","+roundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
 		r += ","+distanceDriven+","+distanceWalked+","+totalDistanceCovered+","+distanceDrivenStem+","+timeSpentDrivingStem;
-		r += ","+successfulJobs+","+parcels.size();
+		r += ","+(roundParcelsCount - unsuccessfulJobs)+","+unsuccessfulJobs;
 		roundStats.add(r);
 		
+	}
+	
+	public void setStatus(DriverUtilities.driverStates e){
+		this.currentDriverState = e;
 	}
 }

@@ -10,6 +10,7 @@ import sim.engine.Steppable;
 import swise.agents.SpatialAgent;
 import swise.objects.network.GeoNode;
 import utilities.DepotUtilities;
+import utilities.DriverUtilities;
 
 public class Depot extends SpatialAgent implements Burdenable {
 
@@ -136,7 +137,8 @@ public class Depot extends SpatialAgent implements Burdenable {
 		if(rounds.size() <= 0)
 			return;
 		
-		else
+		else {
+			d.setStatus(DriverUtilities.driverStates.LOADING);
 			world.schedule.scheduleOnce(world.schedule.getTime() + world.loadingTime, new Steppable(){
 
 				@Override
@@ -155,6 +157,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 				}
 			
 			});
+		}
 	}
 	
 	/**
@@ -166,6 +169,10 @@ public class Depot extends SpatialAgent implements Burdenable {
 		// if the Driver was originally there, remove it
 		if(inBays.contains(d)){
 			inBays.remove(d);
+			if(d.myVehicle != null)
+				d.setStatus(DriverUtilities.driverStates.DRIVING_FROM_DEPOT);
+			else
+				d.setStatus(DriverUtilities.driverStates.WALKING_FROM_DEPOT);
 			world.schedule.scheduleOnce(d);
 			
 			// if there are Drivers waiting in the queue, let the next one move in

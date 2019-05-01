@@ -81,7 +81,7 @@ public class SimpleDrivers extends SimState {
 
 	public static int loadingTime = 20;
 	public static int deliveryTime = 3;
-	public static int approxManifestSize = 100;
+	public static int approxManifestSize = 50;
 	public static double parkingRadius = 300;
 
 	public static int numParcels = 1000;
