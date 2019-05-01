@@ -85,7 +85,7 @@ public class SimpleDrivers extends SimState {
 	public static double parkingRadius = 300;
 
 	public static int numParcels = 1000;
-	public static double probFailedDelivery = .126;
+	public static double probFailedDelivery = 0;//.126;
 	
 	public boolean writeModelStatsToFile = true;
 	public boolean writeFullModelStats = false;

@@ -236,6 +236,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		myRound.add(homeBaseMB);
 		ArrayList <Parcel> parcelsCopy = (ArrayList <Parcel>) parcels.clone(); 
 		parkingPerRound.put(homeBaseMB, parcelsCopy);
+		
+		firstDeliveryInRound = myRound.get(0);
 	}
 	
 	@Override
@@ -248,8 +250,11 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		}
 		
 	     // make sure the round has been defined with parking spaces if needed; update it if not
-	     if(myRound == null && myVehicle != null){
-			updateRoundClustered();
+	     if(myRound == null){
+	    	 if(myVehicle != null)
+	    		 updateRoundClustered();
+	    	 else
+	    		 setWalkingRoute();
 		}
 
 		// is there more path to travel? If so, take it
