@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import sim.SimpleDrivers;
 import sim.engine.SimState;
@@ -42,7 +43,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	HashMap <MasonGeometry, ArrayList <Parcel>> parkingPerRound = new HashMap <MasonGeometry, ArrayList <Parcel>> (); 
 	ArrayList <String> history = new ArrayList <String> ();
 
-	int roundIndex = 0;
+//	int roundIndex = 0;
 	int miniRoundIndex = -1;
 	public Stoppable stopper = null;
 	double speed = 3.; // m per second
@@ -78,7 +79,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	String shortID = ""; //shorter id, not guaranteed to be unique
 	
 	int roundParcelsCount = 0; //number of parcels in the round
-	Parcel firstDeliveryInRound; // For logging purposes, to identify stem mileage
+	MasonGeometry firstDeliveryInRound; // For logging purposes, to identify stem mileage
 	Coordinate coordinateAtPreviousStep;
 	
 	ArrayList <String> waypointsTrace = new ArrayList <String> ();
@@ -290,10 +291,11 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			enterVehicle();
 			world.schedule.scheduleOnce(this);
 			
+			
 			if(targetDestination.equals2D(homeBase)) {
 				currentDriverState = driverStates.DRIVING_TO_DEPOT;
 			}
-			else if(currentDelivery.equals(firstDeliveryInRound)) {
+			else if(currentDelivery != null && currentDelivery.getGeometry().getCoordinate().equals(firstDeliveryInRound.getGeometry().getCoordinate())) {
 				currentDriverState = driverStates.DRIVING_FROM_DEPOT;				
 			}
 			else {
@@ -531,6 +533,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			
 			// save the record
 			parkingPerRound.put(parkingSpaceItself, toDeliver);
+			
+			firstDeliveryInRound = myRound.get(0);
 		}
 		if(!iter.hasNext() && allTempParcels.size() > 0){
 			System.out.println("but whyyy");
