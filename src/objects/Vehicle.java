@@ -8,6 +8,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import sim.SimpleDrivers;
 import sim.engine.SimState;
 import sim.engine.Steppable;
+import sim.engine.Stoppable;
 import sim.util.geo.MasonGeometry;
 import sim.util.gui.WordWrap;
 import swise.agents.MobileAgent;
@@ -29,7 +30,8 @@ public class Vehicle extends MobileAgent implements Burdenable {
 	UUID vehicleUID;
 	String shortID = "";
 	ArrayList <String> waypointsTrace = new ArrayList <String> ();
-	int waypointTraceInterval = 10;
+	int waypointTraceInterval = 1;
+	public Stoppable stoppableWaypointLogger;
 	
 	/*
 	 * END OUTPUT AND LOGGING VARS
@@ -52,7 +54,7 @@ public class Vehicle extends MobileAgent implements Burdenable {
 				LogWaypoint();
 			}
 		};
-		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppable, waypointTraceInterval);
+		stoppableWaypointLogger = world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppable, waypointTraceInterval);
 	}
 	
 	@Override

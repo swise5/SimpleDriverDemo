@@ -44,7 +44,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	HashMap <MasonGeometry, ArrayList <Parcel>> parkingPerRound = new HashMap <MasonGeometry, ArrayList <Parcel>> (); 
 	ArrayList <String> history = new ArrayList <String> ();
 
-//	int roundIndex = 0;
+	int roundIndex = 0;
 	int miniRoundIndex = -1;
 	public Stoppable stopper = null;
 	double speed = 3.; // m per second
@@ -84,10 +84,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	Coordinate coordinateAtPreviousStep;
 	
 	ArrayList <String> waypointsTrace = new ArrayList <String> ();
-	int waypointTraceInterval = 10; //update interval for logging the current waypoint, similar to GPS polling rate
+	int waypointTraceInterval = 1; //update interval for logging the current waypoint, similar to GPS polling rate
 	
-	int roundIndex = 0; // which round we are currently in, in case of multiple rounds per driver
+	int overallRoundIndex = 0; // which round we are currently in, in case of multiple rounds per driver
 	double timeSinceRoundStarted = 0;
+	
+	Steppable steppableWaypointLogger;
+	Steppable steppableRoundStatsUpdate;
+	Stoppable stoppableWaypointLogger;
 	
 	/*
 	 * END OUTPUT AND LOGGING VARS
@@ -135,21 +139,28 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		shortID = "D-" + shortID;
 		
 		//scheduling of path recording, polling rate can be modified
-		Steppable steppableWaypointLogger = new Steppable(){
+		steppableWaypointLogger = new Steppable(){
 			public void step(SimState state) {
 				LogWaypoint();
 			}
 		};
-		world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppableWaypointLogger, waypointTraceInterval);
+		stoppableWaypointLogger = world.schedule.scheduleRepeating(world.schedule.EPOCH, 3, steppableWaypointLogger, waypointTraceInterval);
 		
 		//scheduling of round stats recording, happens EVERY tick
-		Steppable steppableRoundStatsUpdate = new Steppable(){
+		steppableRoundStatsUpdate = new Steppable(){
 			public void step(SimState state) {
 				UpdateRoundStats();
 				coordinateAtPreviousStep = (Coordinate) getLocation().clone();
 			}
 		};
-		world.schedule.scheduleRepeating(world.schedule.EPOCH, 4, steppableRoundStatsUpdate);
+		world.schedule.scheduleRepeating(world.schedule.EPOCH, 4, steppableRoundStatsUpdate,1);
+	}
+	
+	public void stopWaypointLogger() {
+		stoppableWaypointLogger.stop();
+		if(myVehicle != null) {
+			myVehicle.stoppableWaypointLogger.stop();
+		}
 	}
 	
 	public void startRoundClock(){
@@ -159,6 +170,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		roundParcelsCount = parcels.size();
 		if(myVehicle != null)
 			roundParcelsCount += myVehicle.parcels.size();
+		
+		overallRoundIndex ++;
 	}
 	
 	
@@ -224,6 +237,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		}
 		
 		double time = world.schedule.getTime(); // find the current time
+		
+		if(inVehicle) {
+			myVehicle.setLocation(this.getLocation());
+		}
 		
 		// make sure the round has been defined, and update it if not
 		if(this.myRound == null){
@@ -1010,13 +1027,13 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		 * roundId, driverId, roundSequenceId, roundDuration (s), driveTime (s), walkTime (s), parkTime (s), driveDistance (m), walkDistance (m),
 		 * totalDriverDistance (m), stemDistance (m), stemTime (s), succesfulJobs, unsuccessfulJobs 
 		 */
-		String roundId = shortID + "-" + roundIndex;
+		String roundId = shortID + "-" + overallRoundIndex;
 		double totalDistanceCovered = distanceDriven+distanceWalked;
 		int unsuccessfulJobs = parcels.size();
 		if(myVehicle != null)
 			unsuccessfulJobs += myVehicle.parcels.size();
 		
-		String r = roundId+","+shortID+","+roundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
+		String r = roundId+","+shortID+","+overallRoundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
 		r += ","+distanceDriven+","+distanceWalked+","+totalDistanceCovered+","+distanceDrivenStem+","+timeSpentDrivingStem;
 		r += ","+(roundParcelsCount - unsuccessfulJobs)+","+unsuccessfulJobs;
 		roundStats.add(r);

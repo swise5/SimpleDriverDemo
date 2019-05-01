@@ -99,8 +99,10 @@ public class Depot extends SpatialAgent implements Burdenable {
 		
 		System.out.println(d.toString() + " has entered the depot!");
 		
-		if(rounds.size() == 0)
+		if(rounds.size() == 0) {
+			d.stopWaypointLogger();
 			return -1; // finished with everything
+		}
 		else if(inBays.size() >= numBays){
 			waiting.add(d);
 			world.schedule.scheduleOnce(new Steppable(){
@@ -134,9 +136,9 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	void enterBay(Driver d){
 		inBays.add(d);
-		if(rounds.size() <= 0)
+		if(rounds.size() <= 0) {
 			return;
-		
+		}
 		else {
 			d.setStatus(DriverUtilities.driverStates.LOADING);
 			world.schedule.scheduleOnce(world.schedule.getTime() + world.loadingTime, new Steppable(){
