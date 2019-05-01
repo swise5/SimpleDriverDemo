@@ -102,7 +102,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		this.world = world;
 		parcels = new ArrayList <Parcel> ();
 		
-		speed = world.speed_vehicle;
+		speed = world.speed_pedestrian;
 		
 		edge = SimpleDrivers.getClosestEdge(c, world.resolution, world.networkEdgeLayer, world.fa);
 		
@@ -215,18 +215,23 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		world.schedule.scheduleOnce(this);
 	}
 	
+	void setWalkingRoute(){
+		myRound = new ArrayList <MasonGeometry> ();
+		parkingPerRound = new HashMap <MasonGeometry, ArrayList <Parcel>> ();
+
+		MasonGeometry homeBaseMB = new MasonGeometry(world.fa.createPoint(homeBase));
+		myRound.add(homeBaseMB);
+		ArrayList <Parcel> parcelsCopy = (ArrayList <Parcel>) parcels.clone(); 
+		parkingPerRound.put(homeBaseMB, parcelsCopy);
+	}
+	
 	@Override
 	public void step(SimState arg0) {
 		
-		for(Parcel p: parcels){
-			if(p.carryingUnit == null)
-				System.out.println("lolwut " + p.myId);
-		}
-		
 		double time = world.schedule.getTime(); // find the current time
 		
-		// make sure the round has been defined, and update it if not
-		if(this.myRound == null){
+		// make sure the round has been defined with parking spaces if needed; update it if not
+		if(myRound == null && myVehicle != null){
 			updateRoundClustered();
 		}
 
@@ -242,6 +247,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			
 			// if not in vehicle, attempt delivery
 			if(myVehicle == null || !inVehicle){
+				currentDriverState = driverStates.WALKING_TO_DELIVERY;
 				if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
 					attemptDelivery(time);
 					currentDelivery = null; // it has been attempted! TODO ensure this is sorted

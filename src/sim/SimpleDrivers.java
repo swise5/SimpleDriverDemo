@@ -73,7 +73,7 @@ public class SimpleDrivers extends SimState {
 	private static final long serialVersionUID = 1L;
 	public static int grid_width = 800;
 	public static int grid_height = 500;
-	public static double resolution = 2;// the granularity of the simulation 
+	public static double resolution = 1;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 
 	public static double speed_pedestrian = 30;
@@ -286,6 +286,11 @@ public class SimpleDrivers extends SimState {
 				p.assignVehicle(v);
 				
 				vehiclesLayer.addGeometry(v);
+			}
+			ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
+			for(Driver w: walkers){
+				agentLayer.addGeometry(w);
+				agents.add(w);
 			}
 
 

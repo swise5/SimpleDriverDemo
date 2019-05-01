@@ -134,8 +134,10 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	void enterBay(Driver d){
 		inBays.add(d);
-		if(rounds.size() <= 0)
+		if(rounds.size() <= 0){
+			System.out.println("BYE, FELICIA");
 			return;
+		}
 		
 		else {
 			d.setStatus(DriverUtilities.driverStates.LOADING);
@@ -153,7 +155,11 @@ public class Depot extends SpatialAgent implements Burdenable {
 					System.out.println(d.toString() + " has taken on a new load: " + newRound.size());
 					leaveDepot(d);
 					d.startRoundClock();
-					d.updateRoundClustered();
+					if(d.myVehicle != null)
+						d.updateRoundClustered();
+					else
+						d.setWalkingRoute();
+						
 				}
 			
 			});

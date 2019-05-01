@@ -90,4 +90,27 @@ public class DriverUtilities {
 		
 		return agents;
 	}
+	
+	public static synchronized ArrayList<Driver> setupWalkersAtDepots(SimpleDrivers world, 
+			GeometryFactory fa, int numWalkers){
+		
+		ArrayList <Driver> agents = new ArrayList <Driver> ();
+		Bag myDepots = world.depotLayer.getGeometries();
+		int myDepotsSize = myDepots.numObjs;
+		
+		for(int i = 0; i < numWalkers; i++){
+			
+			Object o = myDepots.get(i % myDepotsSize);//world.random.nextInt(myDepotsSize));
+			Depot depot = (Depot) o;
+			Coordinate myC = (Coordinate) depot.geometry.getCoordinate().clone();
+			Driver driver = new Driver(world, myC);
+			agents.add(driver);
+			
+			depot.enterDepot(driver);
+			//driver.setNode(depot.getNode());
+		}
+		
+		return agents;
+	}
+
 }
