@@ -150,7 +150,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 						transferTo(newRound, d.myVehicle);	
 					}
 					else
-						d.addParcels(newRound);
+						transferTo(newRound, d);
 					
 					System.out.println(d.toString() + " has taken on a new load: " + newRound.size());
 					leaveDepot(d);

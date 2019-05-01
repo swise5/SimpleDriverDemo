@@ -1,6 +1,7 @@
 package objects;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -10,7 +11,8 @@ import swise.agents.MobileAgent;
 
 public class Parcel extends MobileAgent {
 
-	long myId;
+	UUID parcelUID; //agent unique ID
+
 	Burdenable carryingUnit = null;
 	Coordinate deliveryLocation;
 	double dim_x, dim_y, dim_z, weight;
@@ -22,8 +24,8 @@ public class Parcel extends MobileAgent {
 		carryingUnit = carrier;
 		history = new ArrayList <String> ();
 		carrier.addParcel(this);
-		isMovable = true;
-		myId = System.nanoTime();
+		isMovable = true;		
+		parcelUID = UUID.randomUUID();
 	}
 	
 	public void setDeliveryLocation(Coordinate c){
@@ -53,7 +55,7 @@ public class Parcel extends MobileAgent {
 	
 	public boolean deliver(Geometry targetGeo){
 		if(carryingUnit == null)
-			System.out.println("ERROR: delivered parcel has no assigned carrying unit");
+			System.out.println("ERROR: delivered parcel has no assigned carrying unit - " + toString());
 		else if(carryingUnit.getLocation().distance(deliveryLocation) <= SimpleDrivers.resolution){
 			this.geometry = targetGeo;
 			carryingUnit.removeParcel(this);
@@ -63,6 +65,7 @@ public class Parcel extends MobileAgent {
 			updateLoc(targetGeo.getCoordinate());
 			return true;
 		}
+		System.out.println("ERROR: delivered parcel too far from the delivery location - " + toString());
 		status = 1;
 		return false;
 	}
@@ -71,6 +74,6 @@ public class Parcel extends MobileAgent {
 		if(!(o instanceof Parcel))
 			return false;
 		Parcel p = (Parcel) o;
-		return myId == p.myId;
+		return parcelUID == p.parcelUID;
 	}
 }

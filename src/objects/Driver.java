@@ -183,6 +183,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			System.out.println(
 					this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
 			miniRoundIndex++;
+			currentDelivery.status = 1; // failed attempt
 		} 
 		
 		// successful delivery!
@@ -284,6 +285,15 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			
 			// otherwise get out of vehicle and try again next time
 			else if(inVehicle){
+				
+				// check for others in the parking space - if so, wait around
+				Bag b = world.agentLayer.getObjectsWithinDistance(geometry, world.resolution);
+				if(b.size() > 1){
+					System.out.println("waiting for other parker to move");
+					world.schedule.scheduleOnce(this);
+					return;
+				}
+				
 				exitVehicle();
 				world.schedule.scheduleOnce(this);
 				
@@ -510,10 +520,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			// if there are no nearby parking spaces, we'll plan around the delivery itself
 			if(b.size() == 0){
 				
-				MasonGeometry mg = new MasonGeometry(world.fa.createPoint(parkingOnRoad));				
-				ArrayList <Parcel> ps = new ArrayList <Parcel>();
-				ps.add(p);
-				parkingSpaceOptions.put(mg, ps);
+				MasonGeometry mg = new MasonGeometry(world.fa.createPoint(parkingOnRoad));
+				if(parkingSpaceOptions.containsKey(mg))
+					parkingSpaceOptions.get(mg).add(p);
+				else {
+					ArrayList <Parcel> ps = new ArrayList <Parcel>();
+					ps.add(p);
+					parkingSpaceOptions.put(mg, ps);					
+				}
 			}
 			
 			// if there ARE nearby parking spaces, we'll add this to the list of possible spaces!

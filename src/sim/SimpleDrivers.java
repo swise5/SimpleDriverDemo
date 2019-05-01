@@ -85,7 +85,7 @@ public class SimpleDrivers extends SimState {
 	public static double parkingRadius = 300;
 
 	public static int numParcels = 1000;
-	public static double probFailedDelivery = 0;//.126;
+	public static double probFailedDelivery = .126;
 	
 	public boolean writeModelStatsToFile = true;
 	public boolean writeFullModelStats = false;
@@ -279,7 +279,7 @@ public class SimpleDrivers extends SimState {
 				d.generateRounds();
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 1));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 3));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
@@ -287,11 +287,11 @@ public class SimpleDrivers extends SimState {
 				
 				vehiclesLayer.addGeometry(v);
 			}
-			ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
+			/*ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
 			for(Driver w: walkers){
 				agentLayer.addGeometry(w);
 				agents.add(w);
-			}
+			}*/
 
 
 			// seed the simulation randomly
