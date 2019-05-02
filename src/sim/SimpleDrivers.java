@@ -81,10 +81,10 @@ public class SimpleDrivers extends SimState {
 
 	public static int loadingTime = 20*4;
 	public static int deliveryTime = 3*4;
-	public static int approxManifestSize = 50;
+	public static int approxManifestSize = 20;
 	public static double parkingRadius = 300;
 
-	public static int numParcels = 1000;
+	public static int numParcels = 3000;
 	public static double probFailedDelivery = .126;
 	
 	public boolean writeModelStatsToFile = true;
@@ -279,7 +279,7 @@ public class SimpleDrivers extends SimState {
 				d.generateRounds();
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 3));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 12));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
@@ -287,7 +287,7 @@ public class SimpleDrivers extends SimState {
 				
 				vehiclesLayer.addGeometry(v);
 			}
-			/*ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
+/*			ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
 			for(Driver w: walkers){
 				agentLayer.addGeometry(w);
 				agents.add(w);

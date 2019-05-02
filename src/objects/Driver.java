@@ -772,7 +772,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			// Each car has a certain amount of space: wants to preserve a following distance. 
 			// If the amount of following distance is less than 20 meters (~ 6 car lengths) it'll slow
 			// proportionately
-			double val = ((ListEdge)edge).lengthPerElement() / 5;
+			double val = ((ListEdge)edge).lengthPerElement() / 15;
 			if(val < 10 && this.speed == SimpleDrivers.speed_vehicle) {
 				speed = mySpeed / val;//minSpeed);
 				if(speed < 1){ // if my speed is super low, set it to some baseline to keep traffic moving at all

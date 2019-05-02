@@ -129,8 +129,8 @@ public class SimpleDriversWithUI extends GUIState {
 
 		display.attach(buildings, "Buildings");
 		display.attach(roads, "Roads");
-		display.attach(parkingCatchmentLocations, "Parkingthingy");
-		display.attach(parkingLocations, "Parking");
+		display.attach(parkingCatchmentLocations, "Parkingthingy", false);
+		display.attach(parkingLocations, "Parking", false);
 		
 		display.attach(vehicles, "Vehicles");
 		
