@@ -77,7 +77,8 @@ public class SimpleDrivers extends SimState {
 				// (fiddle around with this to merge nodes into one another)
 
 	public static double speed_pedestrian = 1.5*15;
-	public static double speed_vehicle = 4.02*15;
+	public static double speed_vehicle = //2.7 * 15;
+	4.02*15;
 
 	public static int loadingTime = 20*4;
 	public static int deliveryTime = 3*4;
@@ -85,7 +86,7 @@ public class SimpleDrivers extends SimState {
 	public static double parkingRadius = 300;
 
 	public static int numParcels = 3000;
-	public static double probFailedDelivery = .126;
+	public static double probFailedDelivery = .125;
 	
 	public boolean writeModelStatsToFile = true;
 	public boolean writeFullModelStats = false;
@@ -166,7 +167,7 @@ public class SimpleDrivers extends SimState {
 	 */
 	public SimpleDrivers(long seed) {
 		super(seed);
-		random = new MersenneTwisterFast(12345);
+//		random = new MersenneTwisterFast(12345);
 	}
 
 
@@ -291,8 +292,8 @@ public class SimpleDrivers extends SimState {
 			for(Driver w: walkers){
 				agentLayer.addGeometry(w);
 				agents.add(w);
-			}*/
-
+			}
+*/
 
 			// seed the simulation randomly
 			//seedRandom(System.currentTimeMillis());
@@ -545,7 +546,7 @@ public class SimpleDrivers extends SimState {
 
 		System.out.println("Running...");
 
-		for(int i = 0; i < 288 * 3; i++){
+		for(int i = 0; i < 5760; i++){//288 * 3; i++){
 			simpleDrivers.schedule.step(simpleDrivers);
 		}
 		
