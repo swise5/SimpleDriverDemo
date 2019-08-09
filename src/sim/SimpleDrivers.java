@@ -280,7 +280,7 @@ public class SimpleDrivers extends SimState {
 				d.generateRounds();
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 12));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 6));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);

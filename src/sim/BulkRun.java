@@ -12,7 +12,7 @@ public class BulkRun{
 
 			System.out.println("Running...");
 
-			for(int i = 0; i < 5760; i++){//288 * 3; i++){
+			while(simpleDrivers.schedule.getTime() < 5760 && simpleDrivers.schedule.getTime() < simpleDrivers.schedule.AFTER_SIMULATION){
 				simpleDrivers.schedule.step(simpleDrivers);
 			}
 			
