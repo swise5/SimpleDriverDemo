@@ -8,6 +8,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.channels.FileLock;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,6 +77,8 @@ public class SimpleDrivers extends SimState {
 	public static int grid_height = 500;
 	public static double resolution = 1;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
+	
+	public static int numAgents = 10;
 
 	public static double speed_pedestrian = 1.5*15;
 	public static double speed_vehicle = //2.7 * 15;
@@ -94,6 +98,8 @@ public class SimpleDrivers extends SimState {
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
+//	int epochTime = (int)(System.currentTimeMillis()/1000);
+//	String dirOutName = "data_" + epochTime + "/";
 	
 	//// END Data Sources ////////////////////////
 	
@@ -124,7 +130,7 @@ public class SimpleDrivers extends SimState {
 
 	/////////////// Objects //////////////////////////////////////////////
 
-	public ArrayList <Driver> agents = new ArrayList <Driver> (10);
+	public ArrayList <Driver> agents = new ArrayList <Driver> (numAgents);
 	ArrayList <ArrayList <Parcel>> rounds;
 	
 	public GeometryFactory fa = new GeometryFactory();
@@ -473,6 +479,7 @@ public class SimpleDrivers extends SimState {
 				String simRunUID = dirName + "output_" + mySeed + "_" + java.time.Instant.now().getEpochSecond();
 				BufferedWriter output = new BufferedWriter(new FileWriter(simRunUID + ".txt"));
 				BufferedWriter outputRounds = new BufferedWriter(new FileWriter(simRunUID + "_rounds.txt"));
+				outputRounds.write(agents.get(0).getRoundsStatsHeader() + "\n");
 				
 				for(Driver a: agents){
 					for(String s: a.getHistory())

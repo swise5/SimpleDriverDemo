@@ -12,6 +12,7 @@
 	<classpathentry kind="lib" path="lib/mason.19.jar"/>
 	<classpathentry kind="lib" path="lib/geomason.1.5.jar"/>
 	<classpathentry kind="lib" path="lib/jts-1.13.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/swiselib"/>
+	<classpathentry kind="lib" path="lib/ssj-3.3.1.jar"/>
+	<classpathentry kind="lib" path="lib/swiselib.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
