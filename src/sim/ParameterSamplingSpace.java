@@ -11,6 +11,8 @@ public class ParameterSamplingSpace {
 	// more details here:
 	// http://simul.iro.umontreal.ca/ssjlab/doc/html/umontreal/iro/lecuyer/hups/LatinHypercube.html
 	
+	// in the context of this implementation, a parameter is essentially one of the LHC's dimensions
+	
 	LatinHypercube lhc;
 	
 	public ArrayList<SamplingParameter> parameterSpace;
@@ -38,7 +40,7 @@ public class ParameterSamplingSpace {
 		
 		for (int i = 0; i < parameterSpace.size(); i++) {
 			double coord = lhc.getCoordinate(sampleIndex, i);
-			double vtemp = parameterSpace.get(i).getParameterValueInSamplingRange(coord);
+			double vtemp = parameterSpace.get(i).GetParameterValueInSamplingRange(coord);
 			values.add(vtemp);
 		}
 		

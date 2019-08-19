@@ -21,7 +21,7 @@ public class SamplingParameter {
 		}
 	}
 	
-	public double getParameterValueInSamplingRange(double v) {
+	public double GetParameterValueInSamplingRange(double v) {
 		double out;
 		double vtemp = v * (maxValue - minValue);
 		if(isInt) {
