@@ -1,4 +1,4 @@
-package sim;
+package utilities;
 
 public class SamplingParameter {
 	String id = "";

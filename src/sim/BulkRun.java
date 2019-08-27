@@ -2,12 +2,15 @@ package sim;
 
 import java.util.ArrayList;
 
+import utilities.ParameterSamplingSpace;
+import utilities.SamplingParameter;
+
 public class BulkRun{
 	
 	public static void main(String [] args){
 		
-		int reps = 2;
-		int latinHypercubeSampleSize = 5;
+		int reps = 2;	// sim repetitions for parameter set
+		int latinHypercubeSampleSize = 5; // number of subdivisions for each cube dimension/parameter
 		
 		ParameterSamplingSpace paramSamplingSpace = new ParameterSamplingSpace();
 		
@@ -24,6 +27,8 @@ public class BulkRun{
 				System.out.println(paramSet);
 				
 				SimpleDrivers simpleDrivers = new SimpleDrivers(System.currentTimeMillis());
+				
+				simpleDrivers.writeModelStatsToFile = false;
 				
 				simpleDrivers.loadingTime = (int)Math.round(paramSet.get(0));
 				simpleDrivers.approxManifestSize = (int)Math.round(paramSet.get(1));
