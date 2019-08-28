@@ -958,6 +958,13 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	public ArrayList <String> getHistory() {return history; }
 	public ArrayList <String> getWaypointsTrace() {return waypointsTrace; }
 	public ArrayList <String> getRoundStats() {return roundStats; }
+	public String getRoundsStatsHeader() {
+		String r = "roundId,shortID,overallRoundIndex,timeSinceRoundStarted,timeSpentDriving,timeSpentWalking,timeSpentVehicleParked,";
+		r += "distanceDriven,distanceWalked,totalDistanceCovered,distanceDrivenStem,timeSpentDrivingStem,";
+		r += "succesfulJobs,unsuccessfulJobs";
+		
+		return r;
+	};
 	
 	void LogWaypoint() {
 		//row format: ID, TIME, X, Y
@@ -1052,6 +1059,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		 * roundId, driverId, roundSequenceId, roundDuration (s), driveTime (s), walkTime (s), parkTime (s), driveDistance (m), walkDistance (m),
 		 * totalDriverDistance (m), stemDistance (m), stemTime (s), succesfulJobs, unsuccessfulJobs 
 		 */
+		
+		// if list is empty, add header row
+//		if(roundStats.size() == 0) {
+//			String r = "roundId,shortID,overallRoundIndex,timeSinceRoundStarted,timeSpentDriving,timeSpentWalking,timeSpentVehicleParked";
+//			r += "distanceDriven,distanceWalked,totalDistanceCovered,distanceDrivenStem,timeSpentDrivingStem";
+//			r += "succesfulJobs,unsuccessfulJobs";
+//			roundStats.add(r);
+//		}
 		String roundId = shortID + "-" + overallRoundIndex;
 		double totalDistanceCovered = distanceDriven+distanceWalked;
 		int unsuccessfulJobs = parcels.size();
