@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,6 +16,8 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
+
+import javax.print.attribute.standard.NumberUp;
 
 import sim.engine.SimState;
 import sim.engine.Steppable;
@@ -92,12 +96,16 @@ public class SimpleDrivers extends SimState {
 	public static int numParcels = 3000;
 	public static double probFailedDelivery = .125;
 	
+	public boolean useManifestAndDepotDataset = true;
+	
 	public boolean writeModelStatsToFile = true;
 	public boolean writeFullModelStats = false;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
+	String manifestFileName = "sampleDataset/sampleManifest.csv";
+	
 //	int epochTime = (int)(System.currentTimeMillis()/1000);
 //	String dirOutName = "data_" + epochTime + "/";
 	
@@ -162,6 +170,14 @@ public class SimpleDrivers extends SimState {
 	public void setWriteFullModelStats(boolean v) {
 		writeFullModelStats = v;
 	}
+	
+	public boolean getUseDatasetFromFile() {
+		return useManifestAndDepotDataset;
+	}
+	
+	public void setUseDatasetFromFile(boolean v) {
+		useManifestAndDepotDataset = v;
+	}
 
 	///////////////////////////////////////////////////////////////////////////
 	/////////////////////////// BEGIN functions ///////////////////////////////
@@ -191,7 +207,10 @@ public class SimpleDrivers extends SimState {
 		
 			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
-			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
+			
+			String depotLayerName = useManifestAndDepotDataset ? "sampleDataset/sampleDepots.shp" : "depots.shp";
+			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + depotLayerName, "depots", new Bag());
+			
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
 			
 			GeomVectorField rawParkingLayer = new GeomVectorField(grid_width, grid_height);
@@ -201,7 +220,7 @@ public class SimpleDrivers extends SimState {
 			////////////////// CLEANUP ///////////////////
 			//////////////////////////////////////////////
 
-			//MBR = roadLayer.getMBR();
+//			MBR = roadLayer.getMBR();
 			MBR = buildingLayer.getMBR();
 //			MBR.init(525044, 535806, 178959, 186798);
 			//MBR.init(531000, 534000, 180000, 182400);
@@ -281,9 +300,20 @@ public class SimpleDrivers extends SimState {
 			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
-				generateRandomParcels(d);
-				//generateRandomParcelsInArea(d, parkingArea);
-				d.generateRounds();
+				
+				if(useManifestAndDepotDataset) {
+					//generate parcels and rounds based on dataset
+					
+					generateParcelsFromFile(d, manifestFileName);
+					d.generatePredefinedRounds();
+				}
+				else {
+					//generate random parcels and rounds
+					
+					generateRandomParcels(d);
+					//generateRandomParcelsInArea(d, parkingArea);
+					d.generateRounds();
+				}
 			}
 
 			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 6));
@@ -305,7 +335,7 @@ public class SimpleDrivers extends SimState {
 			//seedRandom(System.currentTimeMillis());
 
 
-			MBR.init(530000, 534500, 179500, 182500);
+			MBR.init(530000-1000, 534500+1000, 179500-1000, 182500+1000);
 			
 			buildingLayer.setMBR(MBR);
 			roadLayer.setMBR(MBR);			
@@ -328,11 +358,12 @@ public class SimpleDrivers extends SimState {
 		for(Object o: depots){
 			MasonGeometry mg = (MasonGeometry) o;
 			int numbays = mg.getIntegerAttribute("loadbays");
+			int id = mg.getIntegerAttribute("id");
 			GeoNode gn = snapPointToNode(mg.geometry.getCoordinate());
 			
 			if(gn == null)
 				continue;
-			Depot d = new Depot(gn.geometry.getCoordinate(), numbays, this);
+			Depot d = new Depot(gn.geometry.getCoordinate(), numbays, id, this);
 			d.setNode(gn);
 
 			depotLayer.addGeometry(d);
@@ -466,6 +497,47 @@ public class SimpleDrivers extends SimState {
 			p.setDeliveryLocation(myc);
 			myParcels.add(p);			
 		}		
+	}
+	
+	public void generateParcelsFromFile(Depot d, String csvFile) {
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(dirName + csvFile));
+			String row;
+			
+			try {
+				while((row = br.readLine()) != null) {
+					String[] line = row.split(",");
+					
+					try {
+						String roundId = line[1];
+						Double easting = Double.parseDouble(line[2]);
+						Double northing = Double.parseDouble(line[3]);
+						int depotId = Integer.parseInt(line[4]);
+						int dayId = Integer.parseInt(line[5]);					
+						
+						if(dayId == 1)
+						{
+							if(depotId == d.getId()) {
+								Parcel p = new Parcel(d);
+								p.setDeliveryLocation(new Coordinate(easting, northing));
+								p.setRoundId(roundId);
+							}
+						}
+						
+						
+					} catch (Exception e) {
+						// TODO: handle exception
+					}
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 	/**

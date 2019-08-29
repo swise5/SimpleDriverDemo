@@ -2,6 +2,10 @@ package utilities;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.logging.Level;
 
@@ -10,6 +14,7 @@ import java.util.logging.Level;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
 
+import objects.Depot;
 import objects.Parcel;
 import sim.field.geo.GeomVectorField;
 
@@ -42,6 +47,40 @@ public class DepotUtilities {
 			int myX = (int)Math.floor((c.x - minx) / dx), myY = (int)Math.floor((c.y - miny) / dy);
 			rounds.get(myX + myY * xperRow).add(p);
 			p.addIntegerAttribute("round", myX + myY * xperRow);
+		}
+		
+		Collections.sort(rounds, (o1, o2) ->  ((Integer)o1.size()).compareTo(o2.size()));
+		for(int i = 0; i < rounds.size(); i++){
+			if(rounds.get(i).size() > 0)
+				return new ArrayList <ArrayList<Parcel>> (rounds.subList(i, rounds.size()));
+		}
+		return new ArrayList <ArrayList<Parcel>> ();
+	}
+	
+	public static ArrayList<ArrayList<Parcel>> definedDistribution(ArrayList<Parcel> parcels, Depot d){
+		Map<String, ArrayList<Parcel>> roundsById = new HashMap<String, ArrayList<Parcel>>();
+		
+		for (Parcel p : parcels) {
+			String rid = p.getRoundId();
+			if(!rid.equals("")) {
+				if(roundsById.containsKey(rid)) {	//roundId has been instantiated in the dictionary, add this parcel to the list
+					roundsById.get(rid).add(p);
+				}
+				else {	//roundId has not been instantiated in the dictionary yet, create new entry and add this parcel
+					roundsById.put(rid, new ArrayList<Parcel>());
+					roundsById.get(rid).add(p);
+				}
+				
+				int roundIdInt = java.util.Arrays.asList(java.util.Arrays.asList(roundsById.keySet()).get(0).toArray()).indexOf(p.getRoundId());
+				roundIdInt += d.getId();
+				p.addIntegerAttribute("round", roundIdInt);
+			}
+		}
+		
+		System.out.println(java.util.Arrays.asList(roundsById.keySet()).get(0));
+		ArrayList<ArrayList<Parcel>> rounds = new ArrayList<ArrayList<Parcel>>();
+		for(String key : roundsById.keySet()) {
+			rounds.add(roundsById.get(key));
 		}
 		
 		Collections.sort(rounds, (o1, o2) ->  ((Integer)o1.size()).compareTo(o2.size()));

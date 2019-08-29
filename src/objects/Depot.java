@@ -22,6 +22,7 @@ public class Depot extends SpatialAgent implements Burdenable {
 	private ArrayList <ArrayList <Parcel>> rounds;
 
 	int numBays;
+	int id;
 	ArrayList <Driver> inBays;
 	ArrayList <Driver> waiting;
 	
@@ -35,11 +36,24 @@ public class Depot extends SpatialAgent implements Burdenable {
 		rounds = new ArrayList <ArrayList <Parcel>> ();
 	}
 	
+	public Depot (Coordinate c, int numbays, int _id, SimpleDrivers world){
+		super(c);
+		parcels = new ArrayList <Parcel> ();
+		inBays = new ArrayList <Driver> ();
+		waiting = new ArrayList <Driver> ();
+		this.world = world;
+		this.numBays = numbays;
+		this.id = _id;
+		rounds = new ArrayList <ArrayList <Parcel>> ();
+	}
+	
 	public void setNode(GeoNode node){
 		myNode = node;
 	}
 	
 	public GeoNode getNode(){ return myNode;}
+	
+	public int getId() { return id;}
 	
 	@Override
 	public void addParcel(Parcel p) {
@@ -142,23 +156,25 @@ public class Depot extends SpatialAgent implements Burdenable {
 		else {
 			d.setStatus(DriverUtilities.driverStates.LOADING);
 			world.schedule.scheduleOnce(world.schedule.getTime() + world.loadingTime, new Steppable(){
-
+				
+				
 				@Override
 				public void step(SimState state) {
-					ArrayList <Parcel> newRound = getNextRound();
-					if(d.myVehicle != null){
-						transferTo(newRound, d.myVehicle);	
+					if(rounds.size() > 0) {
+						ArrayList <Parcel> newRound = getNextRound();
+						if(d.myVehicle != null){
+							transferTo(newRound, d.myVehicle);	
+						}
+						else
+							transferTo(newRound, d);
+						System.out.println(d.toString() + " has taken on a new load: " + newRound.size());
+						leaveDepot(d);
+						d.startRoundClock();
+						if(d.myVehicle != null)
+							d.updateRoundClustered();
+						else
+							d.setWalkingRoute();
 					}
-					else
-						transferTo(newRound, d);
-					
-					System.out.println(d.toString() + " has taken on a new load: " + newRound.size());
-					leaveDepot(d);
-					d.startRoundClock();
-					if(d.myVehicle != null)
-						d.updateRoundClustered();
-					else
-						d.setWalkingRoute();
 						
 				}
 			
@@ -198,5 +214,9 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	public void generateRounds(){
 		rounds.addAll(DepotUtilities.gridDistribution(parcels, world.deliveryLocationLayer, world.approxManifestSize));
+	}
+	
+	public void generatePredefinedRounds() {
+		rounds.addAll(DepotUtilities.definedDistribution(parcels, this));
 	}
 }

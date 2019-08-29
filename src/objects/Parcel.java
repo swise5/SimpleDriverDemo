@@ -19,6 +19,8 @@ public class Parcel extends MobileAgent {
 	ArrayList <String> history;
 	int status; // 0 = undelivered, 1 = failed delivery attempt, 2 = out for delivery, 3 = delivered
 	
+	String roundId = ""; // For when we want to assign parcels to specific rounds
+	
 	public Parcel(Burdenable carrier){
 		super((Coordinate) carrier.getLocation());
 		carryingUnit = carrier;
@@ -33,6 +35,12 @@ public class Parcel extends MobileAgent {
 	}
 	
 	public Coordinate getDeliveryLocation(){ return deliveryLocation; }
+	
+	public void setRoundId(String _roundId) {
+		roundId = _roundId;
+	}
+	
+	public String getRoundId() { return roundId; }
 	
 	public Coordinate getLocation(){
 		if(carryingUnit != null) return carryingUnit.getLocation();
