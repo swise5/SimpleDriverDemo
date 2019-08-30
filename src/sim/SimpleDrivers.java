@@ -105,6 +105,7 @@ public class SimpleDrivers extends SimState {
 	
 	String dirName = "data/";
 	String manifestFileName = "sampleDataset/sampleManifest.csv";
+	String depotLocationsFileName = "sampleDataset/sampleDepots.shp";
 	
 //	int epochTime = (int)(System.currentTimeMillis()/1000);
 //	String dirOutName = "data_" + epochTime + "/";
@@ -208,7 +209,7 @@ public class SimpleDrivers extends SimState {
 			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			
-			String depotLayerName = useManifestAndDepotDataset ? "sampleDataset/sampleDepots.shp" : "depots.shp";
+			String depotLayerName = useManifestAndDepotDataset ? depotLocationsFileName : "depots.shp";
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + depotLayerName, "depots", new Bag());
 			
 			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
@@ -515,7 +516,7 @@ public class SimpleDrivers extends SimState {
 						int depotId = Integer.parseInt(line[4]);
 						int dayId = Integer.parseInt(line[5]);					
 						
-						if(dayId == 1)
+						if(dayId == 2)
 						{
 							if(depotId == d.getId()) {
 								Parcel p = new Parcel(d);
