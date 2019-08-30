@@ -10,14 +10,14 @@ public class BulkRun{
 	public static void main(String [] args){
 		
 		int reps = 2;	// sim repetitions for parameter set
-		int latinHypercubeSampleSize = 5; // number of subdivisions for each cube dimension/parameter
+		int latinHypercubeSampleSize = 5; // number of subdivisions for each dimension/parameter space
 		
 		ParameterSamplingSpace paramSamplingSpace = new ParameterSamplingSpace();
 		
 		paramSamplingSpace.AddParameter(new SamplingParameter("loadingTime", true, 10*4, 30*4));
 		paramSamplingSpace.AddParameter(new SamplingParameter("approxManifestSize", true, 15, 30));
 		paramSamplingSpace.AddParameter(new SamplingParameter("parkingRadius", false, 150, 500));
-		paramSamplingSpace.AddParameter(new SamplingParameter("numParcels", true, 2000, 4000));
+		paramSamplingSpace.AddParameter(new SamplingParameter("deliveryTime", true, 1*4, 6*4));
 		
 		paramSamplingSpace.SetupLatinHypercube(latinHypercubeSampleSize);
 		
@@ -33,7 +33,7 @@ public class BulkRun{
 				simpleDrivers.loadingTime = (int)Math.round(paramSet.get(0));
 				simpleDrivers.approxManifestSize = (int)Math.round(paramSet.get(1));
 				simpleDrivers.parkingRadius = paramSet.get(2);
-				simpleDrivers.numParcels = (int)Math.round(paramSet.get(3));
+				simpleDrivers.deliveryTime = (int)Math.round(paramSet.get(3));
 				
 				System.out.println("Loading...");
 

@@ -104,8 +104,10 @@ public class SimpleDrivers extends SimState {
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
-	String manifestFileName = "sampleDataset/sampleManifest.csv";
-	String depotLocationsFileName = "sampleDataset/sampleDepots.shp";
+//	String manifestFileName = "sampleDataset/sampleManifest.csv";
+//	String depotLocationsFileName = "sampleDataset/sampleDepots.shp";
+	String manifestFileName = "manifestCalibration.csv";
+	String depotLocationsFileName = "depots2.shp";
 	
 //	int epochTime = (int)(System.currentTimeMillis()/1000);
 //	String dirOutName = "data_" + epochTime + "/";
@@ -317,7 +319,7 @@ public class SimpleDrivers extends SimState {
 				}
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 6));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 4));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
@@ -516,14 +518,14 @@ public class SimpleDrivers extends SimState {
 						int depotId = Integer.parseInt(line[4]);
 						int dayId = Integer.parseInt(line[5]);					
 						
-						if(dayId == 2)
-						{
+//						if(dayId == 15)
+//						{
 							if(depotId == d.getId()) {
 								Parcel p = new Parcel(d);
 								p.setDeliveryLocation(new Coordinate(easting, northing));
 								p.setRoundId(roundId);
 							}
-						}
+//						}
 						
 						
 					} catch (Exception e) {

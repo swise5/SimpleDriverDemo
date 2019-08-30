@@ -218,5 +218,6 @@ public class Depot extends SpatialAgent implements Burdenable {
 	
 	public void generatePredefinedRounds() {
 		rounds.addAll(DepotUtilities.definedDistribution(parcels, this));
+		System.out.println("ROUNDS SIZE: " + rounds.size());
 	}
 }

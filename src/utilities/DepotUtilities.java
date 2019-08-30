@@ -59,6 +59,7 @@ public class DepotUtilities {
 	
 	public static ArrayList<ArrayList<Parcel>> definedDistribution(ArrayList<Parcel> parcels, Depot d){
 		Map<String, ArrayList<Parcel>> roundsById = new HashMap<String, ArrayList<Parcel>>();
+		ArrayList<String> roundIds = new ArrayList<String>();
 		
 		for (Parcel p : parcels) {
 			String rid = p.getRoundId();
@@ -68,16 +69,28 @@ public class DepotUtilities {
 				}
 				else {	//roundId has not been instantiated in the dictionary yet, create new entry and add this parcel
 					roundsById.put(rid, new ArrayList<Parcel>());
+					roundIds.add(rid);
+					
 					roundsById.get(rid).add(p);
 				}
 				
-				int roundIdInt = java.util.Arrays.asList(java.util.Arrays.asList(roundsById.keySet()).get(0).toArray()).indexOf(p.getRoundId());
-				roundIdInt += d.getId();
+				int ind = 0;
+				int roundIdInt = -1;
+				for(String k : roundIds) {
+					if(p.getRoundId().equals(k)) {
+						roundIdInt = ind;						
+						break;
+					}
+					else {
+						ind++;
+					}
+				}
+				
 				p.addIntegerAttribute("round", roundIdInt);
 			}
 		}
 		
-		System.out.println(java.util.Arrays.asList(roundsById.keySet()).get(0));
+		System.out.println("ROUND IDs: " + java.util.Arrays.asList(roundsById.keySet()).get(0));
 		ArrayList<ArrayList<Parcel>> rounds = new ArrayList<ArrayList<Parcel>>();
 		for(String key : roundsById.keySet()) {
 			rounds.add(roundsById.get(key));
