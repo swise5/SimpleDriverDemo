@@ -959,9 +959,9 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	public ArrayList <String> getWaypointsTrace() {return waypointsTrace; }
 	public ArrayList <String> getRoundStats() {return roundStats; }
 	public String getRoundsStatsHeader() {
-		String r = "roundId,shortID,overallRoundIndex,timeSinceRoundStarted,timeSpentDriving,timeSpentWalking,timeSpentVehicleParked,";
-		r += "distanceDriven,distanceWalked,totalDistanceCovered,distanceDrivenStem,timeSpentDrivingStem,";
-		r += "succesfulJobs,unsuccessfulJobs";
+		String r = "roundId\t shortID\t overallRoundIndex\t timeSinceRoundStarted\t timeSpentDriving\t timeSpentWalking\t timeSpentVehicleParked\t ";
+		r += "distanceDriven\t distanceWalked\t totalDistanceCovered\t distanceDrivenStem\t timeSpentDrivingStem\t ";
+		r += "succesfulJobs\t unsuccessfulJobs";
 		
 		return r;
 	};
@@ -971,7 +971,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		double t = world.schedule.getTime();
 		Coordinate c = getLocation();
 		
-		String r = shortID + "," + t + "," + c.x + "," + c.y;
+		String r = shortID + "\t" + t + "\t" + c.x + "\t" + c.y;
 		waypointsTrace.add(r);
 	}
 	
@@ -1073,9 +1073,9 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		if(myVehicle != null)
 			unsuccessfulJobs += myVehicle.parcels.size();
 		
-		String r = roundId+","+shortID+","+overallRoundIndex+","+timeSinceRoundStarted+","+timeSpentDriving+","+timeSpentWalking+","+timeSpentVehicleParked;
-		r += ","+distanceDriven+","+distanceWalked+","+totalDistanceCovered+","+distanceDrivenStem+","+timeSpentDrivingStem;
-		r += ","+(roundParcelsCount - unsuccessfulJobs)+","+unsuccessfulJobs;
+		String r = roundId+"\t "+shortID+"\t "+overallRoundIndex+"\t "+timeSinceRoundStarted+"\t "+timeSpentDriving+"\t "+timeSpentWalking+"\t "+timeSpentVehicleParked;
+		r += "\t "+distanceDriven+"\t "+distanceWalked+"\t "+totalDistanceCovered+"\t "+distanceDrivenStem+"\t "+timeSpentDrivingStem;
+		r += "\t "+(roundParcelsCount - unsuccessfulJobs)+"\t "+unsuccessfulJobs;
 		roundStats.add(r);
 		
 	}

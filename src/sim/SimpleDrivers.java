@@ -93,7 +93,7 @@ public class SimpleDrivers extends SimState {
 	public static double probFailedDelivery = .125;
 	
 	public boolean writeModelStatsToFile = true;
-	public boolean writeFullModelStats = false;
+	public boolean writeFullModelStats = true;
 	
 	/////////////// Data Sources ///////////////////////////////////////
 	
@@ -192,7 +192,7 @@ public class SimpleDrivers extends SimState {
 			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
-			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsCoL.shp", "road network", new Bag());
+			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsBad.shp", "road network", new Bag());
 			
 			GeomVectorField rawParkingLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(rawParkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
