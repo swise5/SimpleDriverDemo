@@ -78,8 +78,6 @@ public class SimpleDrivers extends SimState {
 	public static double resolution = 1;// the granularity of the simulation 
 				// (fiddle around with this to merge nodes into one another)
 	
-	public static int numAgents = 10;
-
 	public static double speed_pedestrian = 1.5*15;
 	public static double speed_vehicle = //2.7 * 15;
 	4.02*15;
@@ -89,12 +87,14 @@ public class SimpleDrivers extends SimState {
 	public static int approxManifestSize = 20;
 	public static double parkingRadius = 300;
 
-	public static int numParcels = 3000;
 	public static double probFailedDelivery = .125;
 	
-	public boolean writeModelStatsToFile = true;
-	public boolean writeFullModelStats = true;
+	public boolean writeModelStatsToFile = false;
+	public boolean writeFullModelStats = false;
 	
+	// EXTERNALLY SET
+	public int param_numDrivers = 6, param_numPorters = 6, param_numParcels = 3000;
+
 	/////////////// Data Sources ///////////////////////////////////////
 	
 	String dirName = "data/";
@@ -130,7 +130,7 @@ public class SimpleDrivers extends SimState {
 
 	/////////////// Objects //////////////////////////////////////////////
 
-	public ArrayList <Driver> agents = new ArrayList <Driver> (numAgents);
+	public ArrayList <Driver> agents = new ArrayList <Driver> (param_numDrivers + param_numPorters);
 	ArrayList <ArrayList <Parcel>> rounds;
 	
 	public GeometryFactory fa = new GeometryFactory();
@@ -176,6 +176,12 @@ public class SimpleDrivers extends SimState {
 //		random = new MersenneTwisterFast(12345);
 	}
 
+	public SimpleDrivers(long seed, String duration, int numDrivers, int numPorters, int numParcels){
+		super(seed);
+		this.param_numDrivers = numDrivers;
+		this.param_numPorters = numPorters;
+		this.param_numParcels = numParcels;
+	}
 
 	/**
 	 * Read in data and set up the simulation
@@ -281,12 +287,12 @@ public class SimpleDrivers extends SimState {
 			// generate parcels at each of those depots
 			for(Object o: depotLayer.getGeometries()){
 				Depot d = (Depot) o;
-				generateRandomParcels(d);
+				generateRandomParcels(d, (int)(param_numParcels * buildingLayer.getGeometries().size() * .8));
 				//generateRandomParcelsInArea(d, parkingArea);
 				d.generateRounds();
 			}
 
-			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, 6));
+			agents.addAll(DriverUtilities.setupDriversAtDepots(this, fa, param_numDrivers));
 			for(Driver p: agents){
 				agentLayer.addGeometry(p);
 				Vehicle v = new Vehicle(p.geometry.getCoordinate(), p);
@@ -294,12 +300,12 @@ public class SimpleDrivers extends SimState {
 				
 				vehiclesLayer.addGeometry(v);
 			}
-/*			ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, 2);
+			ArrayList <Driver> walkers = DriverUtilities.setupWalkersAtDepots(this, fa, param_numPorters);
 			for(Driver w: walkers){
 				agentLayer.addGeometry(w);
 				agents.add(w);
 			}
-*/
+
 
 			// seed the simulation randomly
 			//seedRandom(System.currentTimeMillis());
@@ -319,6 +325,15 @@ public class SimpleDrivers extends SimState {
 			vehiclesLayer.setMBR(MBR);
 			parkingCatchmentLayer.setMBR(MBR);
 			
+			this.schedule.scheduleRepeating(new Steppable(){
+
+				@Override
+				public void step(SimState arg0) {
+					System.gc();
+					
+				}
+				
+			}, 50);
 			
 		} catch (Exception e) { e.printStackTrace();}
     }
@@ -411,7 +426,7 @@ public class SimpleDrivers extends SimState {
 			return null;
 	}
 	
-	public void generateRandomParcels(Depot d){
+	public void generateRandomParcels(Depot d, int numParcels){
 		
 		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
 		Bag buildings = buildingLayer.getGeometries();
@@ -443,7 +458,7 @@ public class SimpleDrivers extends SimState {
 		ArrayList <Parcel> myParcels = new ArrayList <Parcel> ();
 		Bag buildings = buildingLayer.getGeometries();
 		
-		for(int i = 0; i < numParcels; i++){
+		for(int i = 0; i < this.param_numParcels; i++){
 			
 			Geometry buildingGeom = ((MasonGeometry)buildings.get(random.nextInt(buildings.size()))).geometry;
 			Point deliveryLoc = buildingGeom.getCentroid();
@@ -539,13 +554,16 @@ public class SimpleDrivers extends SimState {
 	 */
 	public static void main(String[] args)
     {
-		
+		SimpleDrivers simpleDrivers;
 		if(args.length < 0){
 			System.out.println("usage error");
 			System.exit(0);
 		}
 		
-		SimpleDrivers simpleDrivers = new SimpleDrivers(System.currentTimeMillis());
+		if(args.length == 1)
+			simpleDrivers = new SimpleDrivers(System.currentTimeMillis());
+		else
+			simpleDrivers = new SimpleDrivers(System.currentTimeMillis(), args[1], Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]));
 		
 		System.out.println("Loading...");
 

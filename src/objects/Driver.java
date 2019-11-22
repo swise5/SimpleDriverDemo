@@ -190,7 +190,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		else { 
 			currentDelivery.deliver(world.fa.createPoint(currentDelivery.deliveryLocation));
 			miniRound.remove(miniRoundIndex);
-			//System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
+			System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
 			world.deliveryLocationLayer.addGeometry(currentDelivery);
 		}
 
@@ -1082,5 +1082,17 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	
 	public void setStatus(DriverUtilities.driverStates e){
 		this.currentDriverState = e;
+	}
+	
+	public UUID getUID(){
+		return this.agentUID;
+	}
+	
+	public String getShortID(){
+		return this.shortID;
+	}
+	
+	public boolean inVehicle(){
+		return this.inVehicle;
 	}
 }

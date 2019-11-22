@@ -33,7 +33,7 @@ public class BulkRun{
 				simpleDrivers.loadingTime = (int)Math.round(paramSet.get(0));
 				simpleDrivers.approxManifestSize = (int)Math.round(paramSet.get(1));
 				simpleDrivers.parkingRadius = paramSet.get(2);
-				simpleDrivers.numParcels = (int)Math.round(paramSet.get(3));
+				simpleDrivers.param_numParcels = (int)Math.round(paramSet.get(3));
 				
 				System.out.println("Loading...");
 

@@ -76,4 +76,8 @@ public class Parcel extends MobileAgent {
 		Parcel p = (Parcel) o;
 		return parcelUID == p.parcelUID;
 	}
+
+	public UUID getUID(){
+		return parcelUID;
+	}
 }

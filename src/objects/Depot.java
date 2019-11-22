@@ -146,6 +146,11 @@ public class Depot extends SpatialAgent implements Burdenable {
 				@Override
 				public void step(SimState state) {
 					ArrayList <Parcel> newRound = getNextRound();
+					
+					//no one new to thing
+					if(newRound == null || newRound.size() <= 0)
+						return;
+					
 					if(d.myVehicle != null){
 						transferTo(newRound, d.myVehicle);	
 					}
