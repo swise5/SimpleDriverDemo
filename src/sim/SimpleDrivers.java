@@ -92,8 +92,9 @@ public class SimpleDrivers extends SimState {
 	public boolean writeModelStatsToFile = false;
 	public boolean writeFullModelStats = false;
 	
+	
 	// EXTERNALLY SET
-	public int param_numDrivers = 6, param_numPorters = 6, param_numParcels = 3000;
+	public int param_numDrivers = 6, param_numPorters = 0, param_numParcels = 3000;
 
 	/////////////// Data Sources ///////////////////////////////////////
 	
@@ -125,6 +126,8 @@ public class SimpleDrivers extends SimState {
 	public GeomGridField heatmap = new GeomGridField();
 	public Bag roadNodes = new Bag();
 	public Network roads = new Network(false);
+	public AStar pathfinder;
+
 
 	/////////////// End Containers ///////////////////////////////////////
 
@@ -132,6 +135,7 @@ public class SimpleDrivers extends SimState {
 
 	public ArrayList <Driver> agents = new ArrayList <Driver> (param_numDrivers + param_numPorters);
 	ArrayList <ArrayList <Parcel>> rounds;
+
 	
 	public GeometryFactory fa = new GeometryFactory();
 	
@@ -139,7 +143,7 @@ public class SimpleDrivers extends SimState {
 	
 	Envelope MBR = null;
 	
-	boolean verbose = false;
+	public boolean verbose = false;
 	
 	/////////////// END Objects //////////////////////////////////////////
 	
@@ -198,7 +202,7 @@ public class SimpleDrivers extends SimState {
 			GeomVectorField dummyDepotLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(buildingLayer, dirName + "colBuildings.shp", "buildings", new Bag());
 			InputCleaning.readInVectorLayer(dummyDepotLayer, dirName + "depots.shp", "depots", new Bag());
-			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsBad.shp", "road network", new Bag());
+			InputCleaning.readInVectorLayer(roadLayer, dirName + "roadsSelected.shp", "road network", new Bag());
 			
 			GeomVectorField rawParkingLayer = new GeomVectorField(grid_width, grid_height);
 			InputCleaning.readInVectorLayer(rawParkingLayer, dirName + "parkingBaysEC3_merged.shp", "road network", new Bag());
@@ -256,6 +260,8 @@ public class SimpleDrivers extends SimState {
 			
 			roadLayer.setMBR(MBR);
 
+			pathfinder = new AStar();
+			
 			// set up depots
 			setupDepots(dummyDepotLayer);
 			

@@ -76,6 +76,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	double distanceWalked = 0;
 	double distanceDrivenStem = 0;
 	
+	double distanceDrivenAlongWay;
+	double distanceWalkedAlongWay;
+	
+
 	UUID agentUID; //agent unique ID
 	String shortID = ""; //shorter id, not guaranteed to be unique
 	
@@ -133,6 +137,9 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		timeSpentDriving = 0;
 		timeSpentWalking = 0;
 		coordinateAtPreviousStep = (Coordinate) getLocation().clone();
+
+		distanceDrivenAlongWay = 0;
+		distanceWalkedAlongWay = 0;
 		
 		agentUID = UUID.randomUUID();
 		shortID = agentUID.toString().substring(0, 8);
@@ -179,8 +186,10 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		
 		// failed delivery ):
 		double mynextrand = world.random.nextDouble(); 
-		if (mynextrand < world.probFailedDelivery) { 
-			System.out.println(
+		if (mynextrand < world.probFailedDelivery) {
+			
+			if(world.verbose)
+				System.out.println(
 					this.toString() + " has NOT been able to deliver parcel " + currentDelivery.toString());
 			miniRoundIndex++;
 			currentDelivery.status = 1; // failed attempt
@@ -190,7 +199,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		else { 
 			currentDelivery.deliver(world.fa.createPoint(currentDelivery.deliveryLocation));
 			miniRound.remove(miniRoundIndex);
-			System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
+			if(world.verbose)
+				System.out.println(this.toString() + " has delivered parcel " + currentDelivery.toString());
 			world.deliveryLocationLayer.addGeometry(currentDelivery);
 		}
 
@@ -272,8 +282,15 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			if(myVehicle == null || !inVehicle){
 				currentDriverState = driverStates.WALKING_TO_DELIVERY;
 				if (geometry.getCoordinate().distance(currentDelivery.deliveryLocation) < world.resolution) {
-					attemptDelivery(time);
+					// walk distance
+					double myWalkDistance = geometry.getCoordinate().distance(currentDelivery.deliveryLocation);
+					distanceWalkedAlongWay += myWalkDistance;
+					if(myVehicle != null)
+						distanceWalkedAlongWay += myWalkDistance;
+					
+					attemptDelivery(time);					
 					currentDelivery = null; // it has been attempted! TODO ensure this is sorted
+
 					return;
 				}
 				else{
@@ -449,7 +466,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		// write out the report
 		double roundTime = world.schedule.getTime() - roundStartTime;
 		history.add(this.toString() + "\t" + roundTime + "\t" + roundDriveDistance + "\t" + roundWalkDistance);
-		System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
+		if(world.verbose)
+			System.out.println(this.toString() + " is done with the round! It took " + (world.schedule.getTime() - roundStartTime));
 		
 		recordCurrentRoundStats();
 		resetRoundStats();
@@ -462,7 +480,8 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 			int numLeftovers = parcels.size();
 			if(myVehicle != null)
 				numLeftovers += myVehicle.parcels.size();
-			System.out.println("Round finished - driver " + this.toString() + " has returned with " + numLeftovers);
+			if(world.verbose)
+				System.out.println("Round finished - driver " + this.toString() + " has returned with " + numLeftovers);
 			if(parcels.size() > 0)
 				transferTo(parcels, d);
 			if(myVehicle != null)
@@ -642,7 +661,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		if(path != null){
 			double time = 1;//speed;
 			while(path != null && time > 0){
+				LengthIndexedLine lil = segment;
 				time = move(time, speed, resolution);
+				if(segment != lil){
+					if(currentDriverState == driverStates.DRIVING || currentDriverState == driverStates.DRIVING_FROM_DEPOT || currentDriverState == driverStates.DRIVING_TO_DEPOT)
+						distanceDrivenAlongWay += lil.extractLine(lil.getStartIndex(), lil.getEndIndex()).getLength();
+					else
+						distanceWalkedAlongWay += lil.extractLine(lil.getStartIndex(), lil.getEndIndex()).getLength();
+				}
 			}
 			
 			if(segment != null)
@@ -668,6 +694,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 		double cosFriend = moveFactor * Math.cos(theta), sinFriend = moveFactor * Math.sin(theta);
 		
 		Coordinate newLoc = new Coordinate(myLoc.x + cosFriend, myLoc.y + sinFriend);
+		this.distanceWalkedAlongWay += newLoc.distance(myLoc);
 		updateLoc(newLoc);
 		return 1;
 	}
@@ -875,7 +902,7 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 
 		// FINDING A PATH /////////////////////
 
-		path = pathfinder.astarPath(node, destinationNode, world.roads);
+		path = world.pathfinder.astarPath(node, destinationNode, world.roads);
 
 		// if it fails, give up
 		if (path == null){
@@ -977,7 +1004,14 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	
 	//this one should run every frame, as it is capturing times and distances
 	void UpdateRoundStats() {
-		double distanceFromPreviousStep = getLocation().distance(coordinateAtPreviousStep);
+		double distanceFromPreviousStep;
+		if(this.inVehicle == true){
+			distanceFromPreviousStep = getLocation().distance(coordinateAtPreviousStep);
+		}
+		else {
+			distanceFromPreviousStep = getLocation().distance(coordinateAtPreviousStep);
+		}
+			
 		switch (currentDriverState) {
 			case DRIVING:
 				timeSpentDriving++;
@@ -1095,4 +1129,17 @@ public class Driver extends TrafficAgent implements Steppable, Burdenable {
 	public boolean inVehicle(){
 		return this.inVehicle;
 	}
+	
+	public double getTimeParked(){
+		return timeSpentVehicleParked;
+	}
+
+	public double getDistanceDriven(){
+		return this.distanceDrivenAlongWay;//distanceDriven;
+	}
+
+	public double getDistanceWalked(){
+		return this.distanceWalkedAlongWay;//distanceWalked;
+	}
+
 }
